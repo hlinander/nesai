@@ -978,10 +978,16 @@ uint64_t get_ms()
 	return ms;
 }
 
+extern bool overclock_enabled;
+extern bool overclocking;
+
 int main(int argc, char *argv[])
 {
 	if(brain_headless())
 	{
+		overclock_enabled = true;
+		overclocking = true;
+
 		if(!(g_config = InitConfig()))
 		{
 			printf("No config...\n");
