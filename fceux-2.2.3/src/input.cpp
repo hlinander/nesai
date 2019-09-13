@@ -36,6 +36,8 @@
 #include "fds.h"
 #include "driver.h"
 
+#include "brain.h"
+
 #ifdef WIN32
 #include "drivers/win/main.h"
 #include "drivers/win/memwatch.h"
@@ -451,6 +453,12 @@ static void SetInputStuff(int port)
 	switch(joyports[port].type)
 	{
 	case SI_GAMEPAD:
+		if(brain_enabled())
+		{
+			printf("Using brain input...\n");
+			joyports[port].driver = &brain_input;
+			break;
+		}
 		if(GameInfo->type==GIT_VSUNI){
 			joyports[port].driver = &GPCVS;
 		} else {
