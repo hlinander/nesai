@@ -25,6 +25,8 @@
 #include "../videolog/nesvideos-piece.h"
 #endif
 
+#include "../../brain.h"
+
 #ifdef WIN32
 #include <windows.h>
 #endif
@@ -290,7 +292,10 @@ static void DoFun(int frameskip, int periodic_saves)
 		gfx = 0;
 	}
 	FCEUI_Emulate(&gfx, &sound, &ssize, fskipc);
-	FCEUD_Update(gfx, sound, ssize);
+	if(!brain_headless())
+	{
+		FCEUD_Update(gfx, sound, ssize);
+	}
 
 	if(opause!=FCEUI_EmulationPaused()) {
 		opause=FCEUI_EmulationPaused();
@@ -305,6 +310,12 @@ static void DoFun(int frameskip, int periodic_saves)
 static int
 DriverInitialize(FCEUGI *gi)
 {
+	if(brain_headless())
+	{
+		// went great...
+		return 1;
+	}
+
 	if(InitVideo(gi) < 0) return 0;
 	inited|=4;
 
@@ -529,7 +540,7 @@ void FCEUD_TraceInstruction() {
 /**
  * The main loop for the SDL.
  */
-int main(int argc, char *argv[])
+int sdl_main(int argc, char *argv[])
 {
   // this is a hackish check for the --help arguemnts
   // these are normally processed by the config parser, but SDL_Init
@@ -956,6 +967,55 @@ int main(int argc, char *argv[])
 	SDL_Quit();
 	return 0;
 }
+
+uint64_t get_ms() 
+{
+	struct timespec ts;
+	clock_gettime(CLOCK_REALTIME, &ts);
+
+	uint64_t ms  = ts.tv_nsec / 1000000;
+	ms += ts.tv_sec * 1000;
+	return ms;
+}
+
+int main(int argc, char *argv[])
+{
+	if(brain_headless())
+	{
+		if(!(g_config = InitConfig()))
+		{
+			printf("No config...\n");
+			return 1;
+		}
+		
+		FCEUI_Initialize();
+		if(0 == LoadGame(argv[1]))
+		{
+			printf("Failed to load game\n");
+		}
+
+		uint64_t fps_timer = 0;
+		uint32_t fps = 0;
+
+		while(GameInfo)
+		{
+			if(fps_timer < get_ms())
+			{
+				printf("FPS: %d\n", fps);
+				fps = 0;
+				fps_timer = get_ms() + 1000;
+			}
+
+			// frameskip, periodic_saves
+			DoFun(0, 0);
+			++fps;
+		}
+		return 0;
+	}
+
+	return sdl_main(argc, argv);
+}
+
 
 /**
  * Get the time in ticks.

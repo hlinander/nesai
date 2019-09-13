@@ -154,9 +154,6 @@ static DECLFR(JPRead)
 		fputc(ret,DumpInputFile);
 
 	ret|=X.DB&0xC0;
-
-	printf("Ret: %08X\n", ret);
-
 	return(ret);
 }
 

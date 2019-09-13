@@ -418,6 +418,7 @@ FCEUGI *FCEUI_LoadGameVirtual(const char *name, int OverwriteVidMode, bool silen
 	int lastdendy = dendy;
 
 	const char* romextensions[] = { "nes", "fds", 0 };
+	printf("NAME: %s\n", name);
 	fp = FCEU_fopen(name, 0, "rb", 0, -1, romextensions);
 
 	if (!fp)
@@ -659,7 +660,6 @@ void UpdateAutosave(void);
 void FCEUI_Emulate(uint8 **pXBuf, int32 **SoundBuf, int32 *SoundBufSize, int skip) {
 	//skip initiates frame skip if 1, or frame skip and sound skip if 2
 	int r, ssize;
-
 	JustFrameAdvanced = false;
 
 	if (frameAdvanceRequested)
@@ -714,12 +714,13 @@ void FCEUI_Emulate(uint8 **pXBuf, int32 **SoundBuf, int32 *SoundBufSize, int ski
 
 	FCEU_UpdateInput();
 	lagFlag = 1;
-
+	
 #ifdef _S9XLUA_H
 	CallRegisteredLuaFunctions(LUACALL_BEFOREEMULATION);
 #endif
 
 	if (geniestage != 1) FCEU_ApplyPeriodicCheats();
+
 	r = FCEUPPU_Loop(skip);
 
 	if (skip != 2) ssize = FlushEmulateSound();  //If skip = 2 we are skipping sound processing

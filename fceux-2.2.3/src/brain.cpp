@@ -10,7 +10,7 @@ bool brain_enabled()
 	return true;
 }
 
-bool brain_with_video()
+bool brain_headless()
 {
 	return true;
 }

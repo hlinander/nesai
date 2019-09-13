@@ -36,6 +36,8 @@
 #include "input.h"
 #include "driver.h"
 #include "debug.h"
+
+#include "brain.h"
 		 
 #include <cstring>
 #include <cstdio>
@@ -1852,6 +1854,11 @@ int FCEUPPU_Loop(int skip) {
 			SetNESDeemph_OldHacky(maxref, 0);
 		}
 	}	//else... to if(ppudead)
+
+	if(brain_headless())
+	{
+		return 0;
+	}
 
 	#ifdef FRAMESKIP
 	if (skip) {
