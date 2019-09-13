@@ -135,7 +135,7 @@ typedef void (*writefunc)(uint32 A, uint8 V);
 typedef uint8 (*readfunc)(uint32 A);
 
 #ifndef CTASSERT
-#define CTASSERT(x)  typedef char __assert ## y[(x) ? 1 : -1];
+#define CTASSERT(x)  static_assert(x);
 #endif
 
 #include "utils/endian.h"

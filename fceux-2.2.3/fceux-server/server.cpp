@@ -55,6 +55,8 @@
 #define SOL_TCP IPPROTO_TCP
 #endif
 
+#define throw(x) 
+
 typedef struct {
 	uint32 id;	/* mainly for faster referencing when pointed to from the Games
 		           entries.
