@@ -1,0 +1,7 @@
+.sconf_temp/
+.sconsign.dblite
+bin/
+config.log
+*.o
+src/fceux
+fceux-net-server
