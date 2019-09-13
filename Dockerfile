@@ -23,3 +23,8 @@ RUN python3 setup.py build
 RUN apt install -y python3-pip
 RUN pip3 install mysql-connector-python requests
 RUN apt install -y scons
+RUN apt install -y zlib1g-dev
+RUN apt-get update
+RUN apt install -y libsdl2-dev
+RUN apt install -y libsdl-dev
+RUN apt install -y libgtk2.0-dev

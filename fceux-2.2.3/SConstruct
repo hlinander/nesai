@@ -131,6 +131,10 @@ else:
   ### Just make every configuration use -ldl, it may be needed for some reason.
   env.Append(LIBS = ["-ldl"])
 
+  env.Append(CCFLAGS = ["-std=gnu++17", "-D_THP_CORE", "-DAT_PARALLEL_OPENMP=1"])
+  env.Append(CCFLAGS = ["-lcuda", "-pthread"])
+  env.Append(CCFLAGS = ["-I", "/pytorch/torch/include", "-I", "/pytorch/torch/include/torch/csrc/api/include", "-I", "/usr/local/cuda/include", "-I", "src/cereal-1.2.2/include"])
+
   ### Lua platform defines
   ### Applies to all files even though only lua needs it, but should be ok
   if env['LUA']:

@@ -1,9 +1,13 @@
+#undef OPENGL
 #include "brain.h"
+#include "model.h"
 
 #include <stdlib.h>
 
 static uint8 gp_strobe = 0; 
 static uint8 gp_bits = 0;
+
+Model model{0.001};
 
 bool brain_enabled()
 {
@@ -15,9 +19,23 @@ bool brain_headless()
 	return true;
 }
 
+extern uint8 *RAM;
 void brain_on_frame()
 {
-	
+	StateType s;
+	for(size_t i = 0; i < STATE_SIZE; ++i) {
+		s[i] = static_cast<float>(RAM[i]) / 255.0;
+	}	
+	ActionType a = model.get_action(s);
+	gp_bits = 0;
+	gp_bits |= a[static_cast<size_t>(Action::A)] << 0;
+	gp_bits |= a[static_cast<size_t>(Action::B)] << 1;
+	gp_bits |= a[static_cast<size_t>(Action::SELECT)] << 2;
+	gp_bits |= a[static_cast<size_t>(Action::START)] << 3;
+	gp_bits |= a[static_cast<size_t>(Action::UP)] << 4;
+	gp_bits |= a[static_cast<size_t>(Action::DOWN)] << 5;
+	gp_bits |= a[static_cast<size_t>(Action::LEFT)] << 6;
+	gp_bits |= a[static_cast<size_t>(Action::RIGHT)] << 7;
 }
 
 static uint8 input_read(int w)
