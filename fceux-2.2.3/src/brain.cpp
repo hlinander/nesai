@@ -1,6 +1,9 @@
 #include "brain.h"
 
-static uint8_t controller = 0;
+#include <stdlib.h>
+
+static uint8 gp_strobe = 0; 
+static uint8 gp_bits = 0;
 
 bool brain_enabled()
 {
@@ -19,13 +22,29 @@ void brain_on_frame()
 
 static uint8 input_read(int w)
 {
-	return (0 == w) ? controller : 0;
+	if(0 != w)
+	{
+		return 0;
+	}
+
+	static int count = 0;
+ 	if(0 == (count++ & 0x7F))
+	{
+		gp_bits = (count & 0x80) ? 8 : 0;
+	}
+	if(gp_strobe >= 8)
+	{
+		printf("NES game not strobing correctly\n");
+		return 0; // bug
+	}
+	uint8 ret = (gp_bits >> gp_strobe) & 1;
+	++gp_strobe;
+	return ret;
 }
 
 static void input_strobe(int w)
 {
-	// nah
-	(void)w;
+	gp_strobe = 0;
 }
 
 static void input_update(int w, void *data, int arg)
