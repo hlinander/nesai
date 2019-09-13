@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+nvidia-docker run --network=host --rm -it -v $(pwd):/nesai -w /nesai --cap-add=SYS_PTRACE --security-opt seccomp=unconfined hlinander/nesai:1 /bin/bash
