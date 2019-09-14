@@ -968,16 +968,6 @@ int sdl_main(int argc, char *argv[])
 	return 0;
 }
 
-uint64_t get_ms() 
-{
-	struct timespec ts;
-	clock_gettime(CLOCK_REALTIME, &ts);
-
-	uint64_t ms  = ts.tv_nsec / 1000000;
-	ms += ts.tv_sec * 1000;
-	return ms;
-}
-
 extern bool overclock_enabled;
 extern bool overclocking;
 

@@ -1,5 +1,7 @@
 #include "Controller.h"
 
+#include <brain.h>
+
 namespace sn
 {
     Controller::Controller() :
@@ -26,6 +28,11 @@ namespace sn
         m_strobe = (b & 1);
         if (!m_strobe)
         {
+            if(brain_enabled())
+            {
+                m_keyStates = brain_controller_bits();
+                return;
+            }
             m_keyStates = 0;
             int shift = 0;
             for (int button = A; button < TotalButtons; ++button)

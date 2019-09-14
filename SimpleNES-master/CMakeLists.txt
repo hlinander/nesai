@@ -19,6 +19,7 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules/;${CMAKE_MODULE_PATH};$
 
 # Add sources
 file(GLOB SOURCES
+    "${PROJECT_SOURCE_DIR}/../ai/brain.cpp"
     "${PROJECT_SOURCE_DIR}/main.cpp"
     "${PROJECT_SOURCE_DIR}/src/*.cpp"
 )
@@ -45,14 +46,19 @@ function(define_file_basename_for_sources targetname)
 endfunction()
 
 # Specify include Directory
-include_directories("${PROJECT_SOURCE_DIR}/include")
+include_directories(
+    "${PROJECT_SOURCE_DIR}/include"
+    "${PROJECT_SOURCE_DIR}/../ai"
+    "${PROJECT_SOURCE_DIR}/../ai/cereal-1.2.2/include"
+    "/usr/include/torch/csrc/api/include"
+)
 
 # Set static if BUILD_STATIC is set
 if (BUILD_STATIC)
     set(SFML_STATIC_LIBRARIES TRUE)
     # Link libgcc and libstc++ statically as well
     if(CMAKE_COMPILER_IS_GNUCXX)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libstdc++ -static-libgcc")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libstdc++ -static-libgcc -std=c++17")
     endif()
 endif()
 
@@ -72,7 +78,7 @@ else()
 endif()
 
 add_executable(SimpleNES ${SOURCES})
-target_link_libraries(SimpleNES ${SFML_LIBRARIES} ${SFML_DEPENDENCIES})
+target_link_libraries(SimpleNES cuda torch c10 ${SFML_LIBRARIES} ${SFML_DEPENDENCIES})
 
 set_property(TARGET SimpleNES PROPERTY CXX_STANDARD 11)
 set_property(TARGET SimpleNES PROPERTY CXX_STANDARD_REQUIRED ON)

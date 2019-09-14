@@ -34,6 +34,9 @@ namespace sn
             bool setWriteCallback(IORegisters reg, std::function<void(Byte)> callback);
             bool setReadCallback(IORegisters reg, std::function<Byte(void)> callback);
             const Byte* getPagePtr(Byte page);
+
+            const std::vector<Byte> ram() const { return m_RAM; }
+            const std::vector<Byte> ext_ram() const { return m_extRAM; }
         private:
             std::vector<Byte> m_RAM;
             std::vector<Byte> m_extRAM;

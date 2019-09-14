@@ -1,6 +1,8 @@
 #include "Emulator.h"
 #include "Log.h"
 
+#include <brain.h>
+
 #include <thread>
 #include <chrono>
 
@@ -39,8 +41,28 @@ namespace sn
         m_ppu.setInterruptCallback([&](){ m_cpu.interrupt(CPU::NMI); });
     }
 
+    void Emulator::step()
+    {
+        bool end_frame = false;
+        //PPU
+        end_frame |= m_ppu.step();
+        end_frame |= m_ppu.step();
+        end_frame |= m_ppu.step();
+        //CPU
+        m_cpu.step();
+
+        if(end_frame)
+        {
+            brain_on_frame(
+                reinterpret_cast<const uint8_t *>(m_bus.ram().data()), 
+                m_bus.ram().size());
+        }
+    }
+
     void Emulator::run(std::string rom_path)
     {
+        brain_init();
+
         if (!m_cartridge.loadFromFile(rom_path))
             return;
 
@@ -60,89 +82,88 @@ namespace sn
         m_cpu.reset();
         m_ppu.reset();
 
-        m_window.create(sf::VideoMode(NESVideoWidth * m_screenScale, NESVideoHeight * m_screenScale),
-                        "SimpleNES", sf::Style::Titlebar | sf::Style::Close);
-        m_window.setVerticalSyncEnabled(true);
-        m_emulatorScreen.create(NESVideoWidth, NESVideoHeight, m_screenScale, sf::Color::White);
-
-        m_cycleTimer = std::chrono::high_resolution_clock::now();
-        m_elapsedTime = m_cycleTimer - m_cycleTimer;
-
-        sf::Event event;
-        bool focus = true, pause = false;
-        while (m_window.isOpen())
+        if(brain_headless())
         {
-            while (m_window.pollEvent(event))
+            while(brain_continue())
             {
-                if (event.type == sf::Event::Closed ||
-                (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape))
+                step();
+            }
+        }
+        else
+        {
+            m_window.create(sf::VideoMode(NESVideoWidth * m_screenScale, NESVideoHeight * m_screenScale),
+                            "SimpleNES", sf::Style::Titlebar | sf::Style::Close);
+            m_window.setVerticalSyncEnabled(true);
+            m_emulatorScreen.create(NESVideoWidth, NESVideoHeight, m_screenScale, sf::Color::White);
+
+            m_cycleTimer = std::chrono::high_resolution_clock::now();
+            m_elapsedTime = m_cycleTimer - m_cycleTimer;
+
+            sf::Event event;
+            bool focus = true, pause = false;
+            while (m_window.isOpen())
+            {
+                while (m_window.pollEvent(event))
                 {
-                    m_window.close();
-                    return;
-                }
-                else if (event.type == sf::Event::GainedFocus)
-                {
-                    focus = true;
-                    m_cycleTimer = std::chrono::high_resolution_clock::now();
-                }
-                else if (event.type == sf::Event::LostFocus)
-                    focus = false;
-                else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::F2)
-                {
-                    pause = !pause;
-                    if (!pause)
-                        m_cycleTimer = std::chrono::high_resolution_clock::now();
-                }
-                else if (pause && event.type == sf::Event::KeyReleased && event.key.code == sf::Keyboard::F3)
-                {
-                    for (int i = 0; i < 29781; ++i) //Around one frame
+                    if (event.type == sf::Event::Closed ||
+                    (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape))
                     {
-                        //PPU
-                        m_ppu.step();
-                        m_ppu.step();
-                        m_ppu.step();
-                        //CPU
-                        m_cpu.step();
+                        m_window.close();
+                        return;
+                    }
+                    else if (event.type == sf::Event::GainedFocus)
+                    {
+                        focus = true;
+                        m_cycleTimer = std::chrono::high_resolution_clock::now();
+                    }
+                    else if (event.type == sf::Event::LostFocus)
+                        focus = false;
+                    else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::F2)
+                    {
+                        pause = !pause;
+                        if (!pause)
+                            m_cycleTimer = std::chrono::high_resolution_clock::now();
+                    }
+                    else if (pause && event.type == sf::Event::KeyReleased && event.key.code == sf::Keyboard::F3)
+                    {
+                        for (int i = 0; i < 29781; ++i) //Around one frame
+                        {
+                            step();
+                        }
+                    }
+                    else if (focus && event.type == sf::Event::KeyReleased && event.key.code == sf::Keyboard::F4)
+                    {
+                        Log::get().setLevel(Info);
+                    }
+                    else if (focus && event.type == sf::Event::KeyReleased && event.key.code == sf::Keyboard::F5)
+                    {
+                        Log::get().setLevel(InfoVerbose);
+                    }
+                    else if (focus && event.type == sf::Event::KeyReleased && event.key.code == sf::Keyboard::F6)
+                    {
+                        Log::get().setLevel(CpuTrace);
                     }
                 }
-                else if (focus && event.type == sf::Event::KeyReleased && event.key.code == sf::Keyboard::F4)
-                {
-                    Log::get().setLevel(Info);
-                }
-                else if (focus && event.type == sf::Event::KeyReleased && event.key.code == sf::Keyboard::F5)
-                {
-                    Log::get().setLevel(InfoVerbose);
-                }
-                else if (focus && event.type == sf::Event::KeyReleased && event.key.code == sf::Keyboard::F6)
-                {
-                    Log::get().setLevel(CpuTrace);
-                }
-            }
 
-            if (focus && !pause)
-            {
-                m_elapsedTime += std::chrono::high_resolution_clock::now() - m_cycleTimer;
-                m_cycleTimer = std::chrono::high_resolution_clock::now();
-
-                while (m_elapsedTime > m_cpuCycleDuration)
+                if (focus && !pause)
                 {
-                    //PPU
-                    m_ppu.step();
-                    m_ppu.step();
-                    m_ppu.step();
-                    //CPU
-                    m_cpu.step();
+                    m_elapsedTime += std::chrono::high_resolution_clock::now() - m_cycleTimer;
+                    m_cycleTimer = std::chrono::high_resolution_clock::now();
 
-                    m_elapsedTime -= m_cpuCycleDuration;
+                    while (m_elapsedTime > m_cpuCycleDuration)
+                    {
+                        step();
+                        m_elapsedTime -= m_cpuCycleDuration;
+                    }
+
+                    m_window.draw(m_emulatorScreen);
+                    m_window.display();
                 }
-
-                m_window.draw(m_emulatorScreen);
-                m_window.display();
-            }
-            else
-            {
-                sf::sleep(sf::milliseconds(1000/60));
-                //std::this_thread::sleep_for(std::chrono::milliseconds(1000/60)); //1/60 second
+                else
+                {
+                    sf::sleep(sf::milliseconds(1000/60));
+                    //std::this_thread::sleep_for(std::chrono::milliseconds(1000/60)); //1/60 second
+                }
             }
         }
     }

@@ -1,13 +1,15 @@
 #ifndef __BRAIN_H_DEF__
 #define __BRAIN_H_DEF__
 
-#include "input.h"
+#include <stdint.h>
+#include <stddef.h>
 
-extern INPUTC brain_input;
-
+void brain_init();
 bool brain_enabled();
 bool brain_headless();
-void brain_on_frame();
+bool brain_continue();
+uint8_t brain_controller_bits();
+void brain_on_frame(const uint8_t *ram, size_t n);
 
 #endif // __BRAIN_H_DEF__
 

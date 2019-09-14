@@ -1,6 +1,8 @@
 #include "PPU.h"
 #include "Log.h"
 
+#include <brain.h>
+
 namespace sn
 {
     PPU::PPU(PictureBus& bus, VirtualScreen& screen) :
@@ -28,8 +30,10 @@ namespace sn
         m_vblankCallback = cb;
     }
 
-    void PPU::step()
+    bool PPU::step()
     {
+        bool endOfFrame = false;
+
         switch (m_pipelineState)
         {
             case PreRender:
@@ -178,7 +182,10 @@ namespace sn
                     //else bgColor
 
 //                     m_screen.setPixel(x, y, sf::Color(colors[m_bus.readPalette(paletteAddr)]));
-                    m_pictureBuffer[x][y] = sf::Color(colors[m_bus.readPalette(paletteAddr)]);
+                    if(!brain_headless())
+                    {
+                        m_pictureBuffer[x][y] = sf::Color(colors[m_bus.readPalette(paletteAddr)]);
+                    }
                 }
                 else if (m_cycle == ScanlineVisibleDots + 1 && m_showBackground)
                 {
@@ -253,12 +260,14 @@ namespace sn
                     ++m_scanline;
                     m_cycle = 0;
                     m_pipelineState = VerticalBlank;
-
-                    for (int x = 0; x < m_pictureBuffer.size(); ++x)
+                    if(!brain_headless())
                     {
-                        for (int y = 0; y < m_pictureBuffer[0].size(); ++y)
+                        for (int x = 0; x < m_pictureBuffer.size(); ++x)
                         {
-                            m_screen.setPixel(x, y, m_pictureBuffer[x][y]);
+                            for (int y = 0; y < m_pictureBuffer[0].size(); ++y)
+                            {
+                                m_screen.setPixel(x, y, m_pictureBuffer[x][y]);
+                            }
                         }
                     }
 
@@ -274,6 +283,7 @@ namespace sn
                 {
                     m_vblank = true;
                     if (m_generateInterrupt) m_vblankCallback();
+                    endOfFrame = true;
                 }
 
                 if (m_cycle >= ScanlineEndCycle)
@@ -296,6 +306,7 @@ namespace sn
         }
 
         ++m_cycle;
+        return endOfFrame;
     }
 
     Byte PPU::readOAM(Byte addr)
