@@ -973,6 +973,8 @@ extern bool overclocking;
 
 int main(int argc, char *argv[])
 {
+	brain_init();
+
 	if(brain_headless())
 	{
 		overclock_enabled = true;
