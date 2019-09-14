@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+mkdir -p bin
+
+# FCEUX
+(cd fceux-2.2.3 && \
+	scons RELEASE=1 && \
+	cp bin/fceux ../bin/fceux)

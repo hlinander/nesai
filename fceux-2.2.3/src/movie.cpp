@@ -693,6 +693,8 @@ bool LoadFM2(MovieData& movieData, EMUFILE* fp, int size, bool stopAfterHeader)
 			state = VALUE;
 			if(isnewline) goto commit;
 			value += c;
+		default:
+			break;
 		}
 		goto done;
 

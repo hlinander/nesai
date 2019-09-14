@@ -25,7 +25,7 @@
 #include "../videolog/nesvideos-piece.h"
 #endif
 
-#include "../../brain.h"
+#include <brain.h>
 
 #ifdef WIN32
 #include <windows.h>
@@ -990,21 +990,10 @@ int main(int argc, char *argv[])
 			printf("Failed to load game\n");
 		}
 
-		uint64_t fps_timer = 0;
-		uint32_t fps = 0;
-
-		while(GameInfo)
+		while(GameInfo && brain_continue())
 		{
-			if(fps_timer < get_ms())
-			{
-				printf("FPS: %d\n", fps);
-				fps = 0;
-				fps_timer = get_ms() + 1000;
-			}
-
 			// frameskip, periodic_saves
 			DoFun(0, 0);
-			++fps;
 		}
 		return 0;
 	}

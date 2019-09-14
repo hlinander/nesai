@@ -36,7 +36,7 @@
 #include "fds.h"
 #include "driver.h"
 
-#include "brain.h"
+#include <brain.h>
 
 #ifdef WIN32
 #include "drivers/win/main.h"
@@ -292,11 +292,16 @@ static void LoadGP(int w, MovieRecord* mr)
 static uint8 ReadGP(int w)
 {
 	uint8 ret;
+	uint8 bits;
+
+	bits = (0 == w && brain_enabled())
+		? brain_controller_bits()
+		: joy[w];
 
 	if(joy_readbit[w]>=8)
 		ret = ((joy[2+w]>>(joy_readbit[w]&7))&1);
 	else
-		ret = ((joy[w]>>(joy_readbit[w]))&1);
+		ret = ((bits>>(joy_readbit[w]))&1);
 	if(joy_readbit[w]>=16) ret=0;
 	if(!FSAttached)
 	{
@@ -451,13 +456,9 @@ static void SetInputStuff(int port)
 {
 	switch(joyports[port].type)
 	{
+	default:
+		break;
 	case SI_GAMEPAD:
-		if(brain_enabled())
-		{
-			printf("Using brain input...\n");
-			joyports[port].driver = &brain_input;
-			break;
-		}
 		if(GameInfo->type==GIT_VSUNI){
 			joyports[port].driver = &GPCVS;
 		} else {
@@ -495,6 +496,8 @@ static void SetInputStuffFC()
 {
 	switch(portFC.type)
 	{
+	default:
+		break;
 	case SIFC_NONE:
 		portFC.driver=&DummyPortFC;
 		break;

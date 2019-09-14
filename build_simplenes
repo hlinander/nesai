@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+mkdir -p bin
+
+# SimpleNES
+(cd SimpleNES-master && \
+	mkdir -p build && \
+	cd build && \
+	cmake -DCMAKE_BUILD_TYPE=Release .. && \
+	make -j4 && \
+	cp SimpleNES ../../bin)
