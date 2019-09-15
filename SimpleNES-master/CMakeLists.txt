@@ -78,7 +78,7 @@ else()
 endif()
 
 add_executable(SimpleNES ${SOURCES})
-target_link_libraries(SimpleNES cuda torch c10 ${SFML_LIBRARIES} ${SFML_DEPENDENCIES})
+target_link_libraries(SimpleNES lua cuda torch c10 ${SFML_LIBRARIES} ${SFML_DEPENDENCIES})
 
 set_property(TARGET SimpleNES PROPERTY CXX_STANDARD 11)
 set_property(TARGET SimpleNES PROPERTY CXX_STANDARD_REQUIRED ON)

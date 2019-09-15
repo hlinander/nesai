@@ -107,6 +107,7 @@ namespace sn
                      f_I << 2 |
                      f_Z << 1 |
                      f_C;
+#if 0
         LOG_CPU << std::hex << std::setfill('0') << std::uppercase
                   << std::setw(4) << +r_PC
                   << "  "
@@ -119,7 +120,7 @@ namespace sn
                   << "SP:"  << std::setw(2) << +r_SP  << /*std::endl;*/" "
                   << "CYC:" << std::setw(3) << std::setfill(' ') << std::dec << ((m_cycles - 1) * 3) % 341
                   << std::endl;
-
+#endif
         Byte opcode = m_bus.read(r_PC++);
 
         auto CycleLength = OperationCycles[opcode];

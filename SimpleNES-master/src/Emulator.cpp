@@ -41,7 +41,7 @@ namespace sn
         m_ppu.setInterruptCallback([&](){ m_cpu.interrupt(CPU::NMI); });
     }
 
-    void Emulator::step()
+    bool Emulator::step()
     {
         bool end_frame = false;
         //PPU
@@ -53,15 +53,22 @@ namespace sn
 
         if(end_frame)
         {
-            brain_on_frame(
+            if(!brain_on_frame(
                 reinterpret_cast<const uint8_t *>(m_bus.ram().data()), 
-                m_bus.ram().size());
+                m_bus.ram().size()))
+            {
+                return false;
+            }
         }
+
+        return true;
     }
 
     void Emulator::run(std::string rom_path)
     {
         brain_init();
+
+        std::cout << "Running with brain: " << brain_enabled() << std::endl;
 
         if (!m_cartridge.loadFromFile(rom_path))
             return;
@@ -84,9 +91,13 @@ namespace sn
 
         if(brain_headless())
         {
-            while(brain_continue())
+            for(;;)
             {
-                step();
+                if(!step())
+                {
+                    std::cout << "Brain is done! :)" << std::endl;
+                    return;
+                }
             }
         }
         else
@@ -128,7 +139,11 @@ namespace sn
                     {
                         for (int i = 0; i < 29781; ++i) //Around one frame
                         {
-                            step();
+                            if(!step())
+                            {
+                                std::cout << "Brain done in pause mode" << std::endl;
+                                return;
+                            }
                         }
                     }
                     else if (focus && event.type == sf::Event::KeyReleased && event.key.code == sf::Keyboard::F4)
@@ -152,7 +167,12 @@ namespace sn
 
                     while (m_elapsedTime > m_cpuCycleDuration)
                     {
-                        step();
+                        if(!step())
+                        {
+                            std::cout << "Brain done in mode xx" << std::endl;
+                            return;
+
+                        }
                         m_elapsedTime -= m_cpuCycleDuration;
                     }
 

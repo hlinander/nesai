@@ -12,6 +12,8 @@
 
 #include "input.h"
 #include "dface.h"
+#include "../../ppu.h"
+#include "../../input.h"
 
 #include "sdl.h"
 #include "sdl-video.h"
@@ -291,9 +293,24 @@ static void DoFun(int frameskip, int periodic_saves)
 	if(NoWaiting) {
 		gfx = 0;
 	}
-	FCEUI_Emulate(&gfx, &sound, &ssize, fskipc);
-	if(!brain_headless())
+
+	if(brain_headless())
 	{
+		FCEU_UpdateInput();
+		FCEUPPU_Loop(0);
+		if(!brain_on_frame(RAM, 0x800))
+		{
+			std::cout << "Brain is done!" << std::endl;
+			exit(1);
+		}
+	}
+	else
+	{
+		FCEUI_Emulate(&gfx, &sound, &ssize, fskipc);
+		if(!brain_on_frame(RAM, 0x800))
+		{
+			std::cout << "Brain is done!" << std::endl;
+		}
 		FCEUD_Update(gfx, sound, ssize);
 	}
 
@@ -992,7 +1009,7 @@ int main(int argc, char *argv[])
 			printf("Failed to load game\n");
 		}
 
-		while(GameInfo && brain_continue())
+		while(GameInfo)
 		{
 			// frameskip, periodic_saves
 			DoFun(0, 0);

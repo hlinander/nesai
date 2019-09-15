@@ -5,17 +5,24 @@
 #include <stdlib.h>
 #include <iostream>
 
-static uint8_t gp_strobe = 0; 
+extern "C"
+{
+#include <lua.h>
+#include <lualib.h>
+#include <lauxlib.h>
+}
+
 static uint8_t gp_bits = 0;
 
 static Model model{0.001};
 
 static bool enabled = false;
 static bool headless = false;
-static bool running = false;
 static bool show_fps = false;
 static uint32_t fps = 0;
 static uint64_t next_fps = 0;
+
+static lua_State *L = nullptr;
 
 static bool bool_env(const char *env)
 {
@@ -37,12 +44,66 @@ static uint64_t get_ms()
 	return ms;
 }
 
+static const uint8_t *cpu_ram = nullptr;
+
+static int brain_lua_readcpu(lua_State *L)
+{
+	uint16_t addr = static_cast<uint16_t>(luaL_checknumber(L, 1));
+	if(addr >= 0x2000)
+	{
+		std::cout << "LUA: Reading invalid address" << std::hex << addr;
+		exit(1);
+	}
+	lua_pushnumber(L, cpu_ram[addr & 0x7FF]);
+	return 1;
+}
+
+static int brain_lua_log(lua_State *L)
+{
+	const char *p = luaL_checkstring(L, 1);
+	if(nullptr == p)
+	{
+		std::cout << "LUA: Missing log argument" << std::endl;
+		exit(1);		
+	}
+	std::cout << "[LUA]: " << p << std::endl;
+	return 0;
+}
+
 void brain_init()
 {
-	enabled = bool_env("BE");
+	const char *script = getenv("BE");
+
+	if(nullptr == script)
+	{
+		enabled = false;
+	}
+	else
+	{
+		enabled = true;
+		if(nullptr == (L = luaL_newstate()))
+		{
+			std::cout << "Failed to initialize LUA" << std::endl;
+			exit(1);
+		}
+		luaL_openlibs(L);
+
+		int status = luaL_dofile(L, script);
+
+		if(status)
+		{
+			std::cout << "Error loading script (" << status << "): " << lua_tostring(L, -1);
+			exit(1);
+		}
+
+		lua_pushcfunction(L, brain_lua_readcpu);
+		lua_setglobal(L, "read_cpu");
+		lua_pushcfunction(L, brain_lua_log);
+		lua_setglobal(L, "log");
+	}
+
 	headless = bool_env("HL");
 	show_fps = bool_env("FPS");
-	running = true;
 }
 
 bool brain_enabled()
@@ -55,9 +116,26 @@ bool brain_headless()
 	return enabled && headless;
 }
 
-bool brain_continue()
+static bool validate_frame()
 {
-	return enabled && running;
+	//
+	// Check if we are good...?
+	//
+	lua_getglobal(L, "brain_validate_frame");
+	if(0 != lua_pcall(L, 0, 1, 0))
+	{
+		std::cout << "LUA: Error running 'brain_validate_frame': " << lua_tostring(L, -1) << std::endl;
+		exit(1);
+	}
+	if(!lua_isboolean(L, -1))
+	{
+		std::cout << "LUA: 'brain_validate_frame' not returning an bool" << std::endl;
+		exit(1);	
+	}
+	
+	bool ret = static_cast<bool>(lua_toboolean(L, -1));
+	lua_pop(L, 1);
+	return ret;
 }
 
 uint8_t brain_controller_bits()
@@ -65,8 +143,20 @@ uint8_t brain_controller_bits()
 	return gp_bits;
 }
 
-void brain_on_frame(const uint8_t *ram, size_t n)
+bool brain_on_frame(const uint8_t *ram, size_t n)
 {
+	if(!brain_enabled())
+	{
+		return true;
+	}
+
+	cpu_ram = ram;
+
+	if(!validate_frame())
+	{
+		return false;
+	}
+
 	if(n != STATE_SIZE)
 	{
 		std::cout << "BAD RAM SIZE (on frame): " << n << " vs. " << STATE_SIZE << std::endl;
@@ -98,64 +188,5 @@ void brain_on_frame(const uint8_t *ram, size_t n)
 		fps = 0;
 		next_fps = now + 1000;
 	}
+	return true;
 }
-
-/*
-static uint8 input_read(int w)
-{
-	if(0 != w)
-	{
-		return 0;
-	}
-
-	static int count = 0;
- 	if(0 == (count++ & 0x7F))
-	{
-		gp_bits = (count & 0x80) ? 8 : 0;
-	}
-	if(gp_strobe >= 8)
-	{
-		printf("NES game not strobing correctly\n");
-		return 0; // bug
-	}
-	uint8 ret = (gp_bits >> gp_strobe) & 1;
-	++gp_strobe;
-	return ret;
-}
-
-static void input_strobe(int w)
-{
-	gp_strobe = 0;
-}
-
-static void input_update(int w, void *data, int arg)
-{
-	(void)w;
-	(void)data;
-	(void)arg;
-	// TODO is this function important?
-}
-
-static void input_log(int w, MovieRecord* mr)
-{
-	(void)w;
-	(void)mr;
-}
-
-static void input_load(int w, MovieRecord* mr)
-{
-	(void)w;
-	(void)mr;
-}
-
-INPUTC brain_input = {
-	input_read,
-	0,
-	input_strobe,
-	input_update,
-	0,
-	0,
-	input_log,
-	input_load
-};
-*/

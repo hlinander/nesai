@@ -774,8 +774,6 @@ void FCEUI_Emulate(uint8 **pXBuf, int32 **SoundBuf, int32 *SoundBufSize, int ski
 
 	if (movieSubtitles)
 		ProcessSubtitles();
-
-	brain_on_frame(RAM, 0x800);
 }
 
 void FCEUI_CloseGame(void) {

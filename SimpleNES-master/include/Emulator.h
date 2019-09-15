@@ -26,7 +26,7 @@ namespace sn
         void setVideoScale(float scale);
         void setKeys(std::vector<sf::Keyboard::Key>& p1, std::vector<sf::Keyboard::Key>& p2);
     private:
-        void step();
+        bool step();
         void DMA(Byte page);
 
         MainBus m_bus;
