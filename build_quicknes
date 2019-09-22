@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+mkdir -p bin
+
+# Brian as a Library
+./build_libbrain && \
+(cd HeadlessQuickNes-master/linux && \
+	make && \
+	cp ../libhqnes.so ../../bin)

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+mkdir -p bin
+
+# Brian as a Library
+(cd ai && \
+	make all && \
+	cp libbrain.so ../bin)

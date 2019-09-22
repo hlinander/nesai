@@ -3,7 +3,7 @@
 
 local core
 local ffi = require "ffi"
-local ok,hqn = pcall(ffi.load, "hqnes")
+local ok,hqn = pcall(ffi.load, "./libhqnes.so")
 if not ok then
     error("Failed to load hqnes library. Did you forget to set LD_LIBRARY_PATH?")
 end

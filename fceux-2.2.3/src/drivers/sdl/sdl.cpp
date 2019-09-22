@@ -301,7 +301,7 @@ static void DoFun(int frameskip, int periodic_saves)
 		if(!brain_on_frame(RAM, 0x800))
 		{
 			std::cout << "Brain is done!" << std::endl;
-			exit(1);
+			exit(0);
 		}
 	}
 	else
@@ -310,6 +310,7 @@ static void DoFun(int frameskip, int periodic_saves)
 		if(!brain_on_frame(RAM, 0x800))
 		{
 			std::cout << "Brain is done!" << std::endl;
+			exit(0);
 		}
 		FCEUD_Update(gfx, sound, ssize);
 	}
