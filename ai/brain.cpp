@@ -12,6 +12,8 @@ extern "C"
 #include <lauxlib.h>
 }
 
+#include <lua.hpp>
+
 static uint8_t gp_bits = 0;
 
 static Model model{0.001};
@@ -190,3 +192,49 @@ bool brain_on_frame(const uint8_t *ram, size_t n)
 	}
 	return true;
 }
+
+//
+// LUA-JIT bindings
+//
+static int luajit_brain_enabled(lua_State *L)
+{
+	lua_pushboolean(L, brain_enabled());
+	return 1;
+}
+
+static int luajit_brain_headless(lua_State *L)
+{
+	lua_pushboolean(L, brain_headless());
+	return 1;
+}
+
+static int luajit_brain_controller_bits(lua_State *L)
+{
+	lua_pushinteger(L, brain_controller_bits());
+	return 1;
+}
+
+static int luajit_brain_on_frame(lua_State *L)
+{
+	return 0;
+}
+
+extern "C" int luaopen_brain_luajit(lua_State *L)
+{
+	static const luaL_Reg functions[] = {
+		{ "enabled", luajit_brain_enabled },
+		{ "headless", luajit_brain_headless },
+		{ "controller_bits", luajit_brain_controller_bits },
+		{ "on_frame", luajit_brain_on_frame },
+		{ nullptr, nullptr }
+	};
+
+	brain_init();
+	lua_newtable(L);
+	luaL_setfuncs(L, functions, 0);
+	return 1;
+}
+
+
+
+

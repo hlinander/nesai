@@ -139,7 +139,7 @@ struct Model {
 		torch::Tensor out = torch::sigmoid(tout).to(torch::kCPU);
 		auto out_a = out.accessor<float,2>();
         std::array<uint8_t, ACTION_SIZE> actions;
-        for(int i = 0; i < ACTION_SIZE; i++){
+        for(size_t i = 0; i < ACTION_SIZE; i++){
             actions[i] = out_a[0][i] > ACTION_THRESHOLD ? 1 : 0;
         }
 		return actions;
@@ -150,7 +150,7 @@ struct Model {
 		actions.push_back(a);
 
 		one_hot_actions.emplace_back(std::array<float, ACTION_SIZE>{});
-        for(int i = 0; i < ACTION_SIZE; ++i) {
+        for(size_t i = 0; i < ACTION_SIZE; ++i) {
             if(a[i]) {
 		        one_hot_actions.back()[i] = 1.0;
             }

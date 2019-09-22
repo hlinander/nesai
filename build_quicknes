@@ -5,4 +5,5 @@ mkdir -p bin
 ./build_libbrain && \
 (cd HeadlessQuickNes-master/linux && \
 	make && \
-	cp ../libhqnes.so ../../bin)
+	cd .. && \
+	cp hqnes.lua quicknes.lua libhqnes.so ../bin)
