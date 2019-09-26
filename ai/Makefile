@@ -1,7 +1,7 @@
 INCLUDES  = -I/usr/include/torch/csrc/api/include
 INCLUDES += -Icereal-1.2.2/include
 CPPFLAGS  = -std=c++17 -O0 -Wall -fPIC -g -ggdb
-LIBS = -lluajit -lcuda -ltorch -lc10
+LIBS = -lluajit-5.1 -lcuda -ltorch -lc10
 
 PHONY: clean
 PHONY: all

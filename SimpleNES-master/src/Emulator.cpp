@@ -53,9 +53,7 @@ namespace sn
 
         if(end_frame)
         {
-            if(!brain_on_frame(
-                reinterpret_cast<const uint8_t *>(m_bus.ram().data()), 
-                m_bus.ram().size()))
+            if(!brain_on_frame())
             {
                 return false;
             }
@@ -68,6 +66,7 @@ namespace sn
     {
         brain_init();
 
+        brain_bind_cpu_mem(reinterpret_cast<const uint8_t *>(m_bus.ram().data()));
         std::cout << "Running with brain: " << brain_enabled() << std::endl;
 
         if (!m_cartridge.loadFromFile(rom_path))

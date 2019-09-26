@@ -294,11 +294,13 @@ static void DoFun(int frameskip, int periodic_saves)
 		gfx = 0;
 	}
 
+	brain_bind_cpu_mem(RAM);
+
 	if(brain_headless())
 	{
 		FCEU_UpdateInput();
 		FCEUPPU_Loop(0);
-		if(!brain_on_frame(RAM, 0x800))
+		if(!brain_on_frame())
 		{
 			std::cout << "Brain is done!" << std::endl;
 			exit(0);
@@ -307,7 +309,7 @@ static void DoFun(int frameskip, int periodic_saves)
 	else
 	{
 		FCEUI_Emulate(&gfx, &sound, &ssize, fskipc);
-		if(!brain_on_frame(RAM, 0x800))
+		if(!brain_on_frame())
 		{
 			std::cout << "Brain is done!" << std::endl;
 			exit(0);
