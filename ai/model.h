@@ -14,7 +14,7 @@
 const int N_ACTIONS = 8U;
 const int N_HIDDEN = 64U;
 const int STATE_SIZE = 0x800;
-const float ACTION_THRESHOLD = 0.5f;
+const float ACTION_THRESHOLD = 0.9f;
 
 enum class Action {
     UP = 0,
@@ -96,6 +96,25 @@ struct Model {
 		std::stringstream sso;
 		torch::save(optimizer, sso);
 		a(cereal::make_nvp("opt", sso.str()));
+	}
+
+	void save_file(const std::string &filename) const {
+		std::stringstream ss;
+		cereal::BinaryOutputArchive ar{ss};
+		save(ar);
+		std::ofstream out(filename, std::ios_base::binary);
+		auto serial{ ss.str() };
+		out.write(serial.c_str(), serial.length());
+	}
+
+	bool load_file(const std::string& filename) {
+		std::ifstream in(filename, std::ios_base::binary);
+		if (in.is_open()) {
+			cereal::BinaryInputArchive ar{ in };
+			load(ar);
+			return true;
+		}
+		return false;
 	}
 
 	template <class Archive>

@@ -4,13 +4,14 @@
 
 #include <stdlib.h>
 #include <iostream>
+#include <dlfcn.h>
 
-extern "C"
-{
-#include <lua.h>
-#include <lualib.h>
-#include <lauxlib.h>
-}
+// extern "C"
+// {
+// #include <lua.h>
+// #include <lualib.h>
+// #include <lauxlib.h>
+// }
 
 #include <lua.hpp>
 
@@ -23,6 +24,8 @@ static bool headless = false;
 static bool show_fps = false;
 static uint32_t fps = 0;
 static uint64_t next_fps = 0;
+static uint32_t frame = 0;
+static const char* name = "noname";
 
 static lua_State *L = nullptr;
 
@@ -82,6 +85,20 @@ void brain_init()
 	}
 	else
 	{
+		if(nullptr != (name = getenv("NAME")))
+		{
+			if(!model.load_file(name))
+			{
+				std::cout << "NOO. PANTS" << std::endl;
+				exit(1);
+			}
+			std::cout << "This one is for Hampus!" << std::endl;
+		}
+		else
+		{
+			std::cout << "WARNING!! Running without name" << std::endl;
+			name = "noname";
+		}
 		enabled = true;
 		if(nullptr == (L = luaL_newstate()))
 		{
@@ -90,6 +107,7 @@ void brain_init()
 		}
 		luaL_openlibs(L);
 
+		printf("script %s\n", script);
 		int status = luaL_dofile(L, script);
 
 		if(status)
@@ -118,13 +136,36 @@ bool brain_headless()
 	return enabled && headless;
 }
 
-static bool validate_frame()
+static float get_reward()
+{
+	//
+	// Check if we are good...?
+	//
+	lua_getglobal(L, "brain_get_reward");
+	if(0 != lua_pcall(L, 0, 1, 0))
+	{
+		std::cout << "LUA: Error running 'brain_get_reward': " << lua_tostring(L, -1) << std::endl;
+		exit(1);
+	}
+	if(!lua_isnumber(L, -1))
+	{
+		std::cout << "LUA: 'brain_validate_frame' not returning an nuymber" << std::endl;
+		exit(1);	
+	}
+	
+	float ret = static_cast<float>(lua_tonumber(L, -1));
+	lua_pop(L, 1);
+	return ret;
+}
+
+static bool validate_frame(uint32_t frame)
 {
 	//
 	// Check if we are good...?
 	//
 	lua_getglobal(L, "brain_validate_frame");
-	if(0 != lua_pcall(L, 0, 1, 0))
+	lua_pushnumber(L, frame);
+	if(0 != lua_pcall(L, 1, 1, 0))
 	{
 		std::cout << "LUA: Error running 'brain_validate_frame': " << lua_tostring(L, -1) << std::endl;
 		exit(1);
@@ -145,32 +186,44 @@ uint8_t brain_controller_bits()
 	return gp_bits;
 }
 
-bool brain_on_frame(const uint8_t *ram, size_t n)
+void brain_bind_cpu_mem(const uint8_t *ram)
+{
+	cpu_ram = ram;
+}
+
+bool brain_on_frame()
 {
 	if(!brain_enabled())
 	{
 		return true;
 	}
 
-	cpu_ram = ram;
-
-	if(!validate_frame())
+	if(!cpu_ram)
 	{
-		return false;
-	}
-
-	if(n != STATE_SIZE)
-	{
-		std::cout << "BAD RAM SIZE (on frame): " << n << " vs. " << STATE_SIZE << std::endl;
+		std::cout << "RAM NOT BOUND!!!" << std::endl;
 		exit(1);
 	}
 
+	if(!validate_frame(frame))
+	{
+		//
+		// Last frame
+		//
+		model.save_file(name);
+		return false;
+	}
+	float reward = get_reward();
+
 	StateType s;
 	for(size_t i = 0; i < STATE_SIZE; ++i) {
-		s[i] = static_cast<float>(ram[i]) / 255.0;
+		s[i] = static_cast<float>(cpu_ram[i]) / 255.0;
 	}
-
 	ActionType a = model.get_action(s);
+	model.record_action(s, a, reward);
+	for(auto& val: a) {
+		std::cout << (int)val << ", ";
+	}
+	std::cout << std::endl;
 	gp_bits = 0;
 	gp_bits |= a[static_cast<size_t>(Action::A)] << 0;
 	gp_bits |= a[static_cast<size_t>(Action::B)] << 1;
@@ -180,7 +233,6 @@ bool brain_on_frame(const uint8_t *ram, size_t n)
 	gp_bits |= a[static_cast<size_t>(Action::DOWN)] << 5;
 	gp_bits |= a[static_cast<size_t>(Action::LEFT)] << 6;
 	gp_bits |= a[static_cast<size_t>(Action::RIGHT)] << 7;
-
 	++fps;
 	auto now = get_ms();
 
@@ -190,6 +242,7 @@ bool brain_on_frame(const uint8_t *ram, size_t n)
 		fps = 0;
 		next_fps = now + 1000;
 	}
+	++frame;
 	return true;
 }
 
@@ -216,7 +269,8 @@ static int luajit_brain_controller_bits(lua_State *L)
 
 static int luajit_brain_on_frame(lua_State *L)
 {
-	return 0;
+	lua_pushboolean(L, brain_on_frame());
+	return 1;
 }
 
 extern "C" int luaopen_brain_luajit(lua_State *L)
@@ -228,10 +282,26 @@ extern "C" int luaopen_brain_luajit(lua_State *L)
 		{ "on_frame", luajit_brain_on_frame },
 		{ nullptr, nullptr }
 	};
-
+	printf("start\n");
 	brain_init();
+	printf("start2\n");
 	lua_newtable(L);
+	printf("start3\n");
 	luaL_setfuncs(L, functions, 0);
+
+	void *hq = dlopen("./libhqnes.so", RTLD_NOW);
+	if(hq)
+	{
+		printf("Found libhq! Doing hacks.\n");
+		typedef const uint8_t * (*get_mem)(void);
+		get_mem gm = (get_mem)dlsym(hq, "hq_get_cpu_mem");
+		if(gm)
+		{
+			printf("...oh and found function too!\n");
+			cpu_ram = gm();
+		}
+	}
+
 	return 1;
 }
 

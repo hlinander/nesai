@@ -27,6 +27,13 @@ int mainmemory_read_u8(lua_State *L)
     return 1;
 }
 
+extern "C" const void * hq_get_cpu_mem(void)
+{    HQN_EMULATOR(emu);
+
+
+    return emu->low_mem();
+}
+
 // Write an unsigned byte to ram
 int mainmemory_write_u8(lua_State *L)
 {

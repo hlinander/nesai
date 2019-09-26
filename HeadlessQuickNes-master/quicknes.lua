@@ -5,9 +5,26 @@
 hq = require("hqnes")
 brain = require("brain")
 
+function bool(value)
+  if value ~= 0 then
+    return true
+  end
+  return false
+end
+
 function run_brain_mode()
-    while true do
+    while brain.on_frame() do
         local bits = brain.controller_bits()
+        hq.joypad.set{
+            right = bool(bit.band(bits, 0x80)),
+            left = bool(bit.band(bits, 0x40)),
+            down = bool(bit.band(bits, 0x20)),
+            up = bool(bit.band(bits, 0x10)),
+            start = bool(bit.band(bits, 0x08)),
+            select = bool(bit.band(bits, 0x04)),
+            b = bool(bit.band(bits, 0x02)),
+            a = bool(bit.band(bits, 0x01)),
+        }
         hq.emu.frameadvance()
     end
 end
@@ -45,7 +62,7 @@ end
 if not brain.headless() then
     hq.gui.enable()      -- enable the gui, required if you want to do GUI stuff
     hq.gui.setscale(2)   -- set the gui to scale to twice the regular size
-    hq.emu.setframerate(60)
+    hq.emu.setframerate(0)
 else
     hq.emu.setframerate(0)
 end

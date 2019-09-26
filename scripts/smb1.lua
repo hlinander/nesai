@@ -1,4 +1,4 @@
 function brain_validate_frame()
-	return false
+	return true
 end
 

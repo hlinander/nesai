@@ -51,6 +51,7 @@ include_directories(
     "${PROJECT_SOURCE_DIR}/../ai"
     "${PROJECT_SOURCE_DIR}/../ai/cereal-1.2.2/include"
     "/usr/include/torch/csrc/api/include"
+    "/usr/include/lua5.3/"
 )
 
 # Set static if BUILD_STATIC is set
@@ -78,7 +79,7 @@ else()
 endif()
 
 add_executable(SimpleNES ${SOURCES})
-target_link_libraries(SimpleNES lua cuda torch c10 ${SFML_LIBRARIES} ${SFML_DEPENDENCIES})
+target_link_libraries(SimpleNES lua5.3 cuda torch c10 ${SFML_LIBRARIES} ${SFML_DEPENDENCIES})
 
 set_property(TARGET SimpleNES PROPERTY CXX_STANDARD 11)
 set_property(TARGET SimpleNES PROPERTY CXX_STANDARD_REQUIRED ON)
