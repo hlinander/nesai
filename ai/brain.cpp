@@ -220,10 +220,10 @@ bool brain_on_frame()
 	}
 	ActionType a = model.get_action(s);
 	model.record_action(s, a, reward);
-	for(auto& val: a) {
-		std::cout << (int)val << ", ";
-	}
-	std::cout << std::endl;
+	// for(auto& val: a) {
+	// 	std::cout << (int)val << ", ";
+	// }
+	// std::cout << std::endl;
 	gp_bits = 0;
 	gp_bits |= a[static_cast<size_t>(Action::A)] << 0;
 	gp_bits |= a[static_cast<size_t>(Action::B)] << 1;

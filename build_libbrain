@@ -5,4 +5,5 @@ mkdir -p bin
 (cd ai && \
 	make all && \
 	cp libbrain.so ../bin && \
+	cp overmind ../bin && \
 	cp brain.lua ../bin)
