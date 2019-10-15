@@ -37,6 +37,10 @@ RUN apt install -y libluajit-5.1-dev
 RUN apt install -y libsdl2-ttf-dev
 # RUN apt install -y lua5.3
 RUN apt install -y luajit
+RUN apt install -y nodejs npm
+ADD nodemind /nodemind
+WORKDIR /nodemind
+RUN npm install
 ENV CPATH=/pytorch/torch/include/:/pytorch/torch/include/torch/csrc/api/include/:/usr/include/luajit-2.1/
 ENV LIBRARY_PATH=/pytorch/torch/lib:/usr/lib/x86_64-linux-gnu/
 ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/intel/mkl/lib/intel64_lin/:/pytorch/torch/lib
