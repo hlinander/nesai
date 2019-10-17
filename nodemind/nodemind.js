@@ -107,7 +107,7 @@ app.get('/rom/:hash', (req, res) => {
 
 app.get('/script/:name', (req, res) => {
   const name = req.params.name
-  if(!(name in name)) return res.sendStatus(500)
+  if(!(name in scripts)) return res.sendStatus(500)
   return res.send(scripts[name])
 })
 
