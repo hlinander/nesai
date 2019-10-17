@@ -4,13 +4,16 @@ const bodyParser = require('body-parser');
 const util = require('util');
 const exec = util.promisify(require('child_process').exec)
 const fs = require('fs').promises
+const crypto = require('crypto')
+
 const port = 3000
 
 let job_id = 0
-const ais = []
-const scripts = []
-const roms = []
-const models = []
+const ais = {}
+const scripts = {}
+const roms = {}
+const models = {}
+const jobs = {}
 
 app.use(bodyParser.json({limit: '50mb'}));
 app.use(bodyParser.raw({
@@ -21,103 +24,185 @@ app.use(bodyParser.raw({
 app.use(bodyParser.urlencoded({limit: '50mb', extended: true}));
 app.set('view engine', 'pug')
 
-async function createNewModel() {
-  await exec('../bin/overmind create model')
-  model_data = await fs.readFile('model', 'binary')
-  console.log(model_data.length)
-  models.push(model_data)
-  return models.length - 1
+function md5(data) {
+  return crypto.createHash('md5').update(data).digest("hex")
+}
+
+function getModelFile(name) {
+  return 'models/' + name + '.model'
+}
+
+function getExperienceFile(name) {
+  return 'rollouts/' + name + '.result'
+}
+
+async function createNewModel(name) {
+  const filename = getModelFile(name)
+  await exec('../bin/overmind create ' + filename)
+  const data = await fs.readFile(filename, 'binary')
+  const hash = md5(data)
+  models[hash] = { data, hash }
+  return hash
 }
 
 function createJob(ai) {
   job_id += 1
-  const j = {
-    job_id,
-    expires: new Date((new Date()).getTime() + parseInt(ai.job_timeout)).getTime(),
-    model_id: ai.model_id,
-    rom_id: ai.rom_id,
-    script_id: ai.script_id
+  jobs[job_id] = {
+    ai,
+    expires: new Date((new Date()).getTime() + ai.job_timeout).getTime() // aids.
   }
-  ai.jobs[job_id] = j
-  return j
+  return {
+    job_id: j.job_id,
+    model: ai.model,
+    rom: ai.rom,
+    script: ai.script
+  }
 }
 
-function createScript(s) {
-  scripts.push(s)
-  return scripts.length - 1
-}
-
-function createROM(r) {
-  roms.push(r)
-  return roms.length - 1
-}
-
-async function createAI({name, rollouts, job_timeout, rom, script}) {
-  ais.push({
-    name,
-    jobs: {},
-    rollouts_left: rollouts,
-    rollouts,
-    job_timeout,
-    rom_id: createROM(rom),
-    model_id: await createNewModel(),
-    script_id: createScript(script)
-  })
-  return ais.length - 1
+async function saveAI(ai) {
+  await fs.writeFile('ai/' + ai.name + '.json', JSON.stringify(ai))
 }
 
 app.post('/newai', async (req, res) => {
-  console.log(req.body);
-  res.send({ ai_id: await createAI(req.body)})
-})
-
-app.get('/rom/:id', (req, res) => {
-  const rom = roms[req.params.id]
-  console.log(req.params)
-  if(!rom) return res.sendStatus(500)
-  return res.end(rom, 'binary')
-})
-
-app.get('/script/:id', (req, res) => {
-  const script = scripts[req.params.id]
-  if(!script) return res.sendStatus(500)
-  return res.send(script)
-})
-
-app.get('/model/:id', (req, res) => {
-  const model = models[req.params.id]
-  if(!model) return res.sendStatus(500)
-  return res.end(model, 'binary')
-})
-
-app.get('/job/:aiid', (req, res) => {
-  const ai = ais[req.params.aiid]
-  if(!ai) {
-    return res.sendStatus(500)
+  const {name, rollouts, job_timeout, rom, script} = req.body
+  if(!name || !rollouts || !job_timeout || !rom || !script) return req.sendStatus(500)
+  if((name in ais) || !(rom in roms) || !(script in scripts)) return req.sendStatus(501)
+  model = await createNewModel(name)
+  ais[name] = {
+    name,
+    generation: 0,
+    rollouts_done: 0,
+    rollouts: parseInt(rollouts),
+    job_timeout: parseInt(job_timeout),
+    rom,
+    model,
+    script
   }
-  if(!ai.rollouts_left) {
-    return res.sendStatus(541)
-  }
-  --ai.rollouts_left
-  return res.send(createJob(ai))
-})
-
-app.post('/result/:aiid/:jobid', async (req, res) => {
-  const ai = ais[req.params.aiid]
-  if(!ai) return res.sendStatus(500)
-  if(!(req.params.jobid in ai.jobs)) return res.sendStatus(501)
-  delete ai.jobs[req.params.jobid]
-  const name = req.params.aiid + "_" + req.params.jobid;
-  await fs.writeFile(name, req.body, 'binary')
-  await fs.appendFile(req.params.aiid + '.result', name + '\n')
-
-
+  await saveAI(ais[name])
   return res.sendStatus(200)
 })
 
-app.get('/', function (req, res) {
+app.get('/roms', (req, res) => {
+  let ret = []
+  for(let k in roms) {
+    const r = roms[k]
+    ret.push({ name: r.name, hash: r.hash })
+  }
+  return res.send(ret)
+})
+
+app.get('/scripts', (req, res) => {
+  let ret = []
+  for(let k in scripts) {
+    ret.push(k)
+  }
+  return res.send(ret)
+})
+
+app.get('/rom/:hash', (req, res) => {
+  const hash = req.params.hash
+  if(!(hash in roms)) return res.sendStatus(500)
+  return res.end(roms[hash].data, 'binary')
+})
+
+app.get('/script/:name', (req, res) => {
+  const name = req.params.name
+  if(!(name in name)) return res.sendStatus(500)
+  return res.send(scripts[name])
+})
+
+app.get('/model/:hash', (req, res) => {
+  const hash = req.params.hash
+  if(!(hash in models)) return res.sendStatus(500)
+  return res.end(models[hash].data, 'binary')
+})
+
+app.get('/job/:name', (req, res) => {
+  const ai = ais[req.params.name]
+  if(!ai) return res.sendStatus(500)
+  if((ai.rollouts_done + ai.jobs.length) >= ai.rollouts) return res.sendStatus(541)
+  return res.send(createJob(ai))
+})
+
+async function advance_generation(ai) {
+  // TODO : Remove all results
+  // TODO : Remove result master file
+
+  const modelfile = getModelFile(ai.name)
+  await exec('../bin/overmind update '
+    + modelfile + ' '
+    + getExperienceFile(ai.name) + ' '
+    + modelfile)
+
+  // Set new model as active
+  delete models[ai.model]
+  const data = await fs.readFile(modelfile)
+  const hash = md5(data)
+  models[hash] = { data, hash }
+  ai.model = hash
+
+  // Reset AI and save it for next generation
+  ++ai.generation;
+  ai.rollouts_done = 0;
+  await saveAI(ai)
+}
+
+app.post('/result/:job_id', async (req, res) => {
+  const job_id = req.params.job_id
+  const ai = jobs[job_id]
+  if(!ai) return res.sendStatus(500)
+  delete jobs[job_id]
+  const experience = 'rollouts/' + ai.name + '.' + job_id
+  await fs.writeFile(experience, req.body, 'binary')
+  await fs.appendFile(getExperienceFile(ai.name), experience + '\n')
+  if(ai.rollouts == ++ai.rollouts_done) {
+    advance_generation(ai) // DONT await
+  }
+  return res.sendStatus(200)
+})
+
+
+async function initialize() {
+  const dirs = [ 'roms', 'scripts', 'ai', 'models', 'rollouts' ]
+  for(d of dirs) {
+    try { await fs.mkdir(d) } catch(e) {}
+  }
+  
+  rom_files = await fs.readdir('roms')
+  for(name of rom_files) {
+    const data = await fs.readFile('roms/' + name)
+    const hash = md5(data)
+    roms[hash] = { name, data, hash }
+  }
+  console.log('Loaded ROMs', roms)
+
+  script_files = await fs.readdir('scripts')
+  for(name of script_files) {
+    scripts[name] = await fs.readFile('scripts/' + name)
+  }
+  console.log('Loaded scrips', scripts)
+}
+
+app.get('/', async (req, res) => {
   res.render('index', { title: 'Hey', message: 'Hello there!' })
 })
 
-app.listen(port, () => console.log(`Example app listening on port ${port}!`))
+setInterval(() => {
+  const now = (new Date()).getTime()
+  let nuke = []
+  for(let key in jobs) {
+    if(now >= jobs[key].expires) {
+      nuke.push(key)
+    }
+  }
+  for(let n of nuke) {
+    delete jobs[n] // tarded.
+  }
+  if(nuke.length) console.log('Number of jobs timed out', nuke.length)
+}, 100);
+
+app.listen(port, async () => {
+  console.log(`Example app listening on port ${port}!`)
+  await initialize()
+})
 
