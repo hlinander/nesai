@@ -135,14 +135,21 @@ app.get('/job/:name', (req, res) => {
 })
 
 async function advanceGeneration(ai) {
-  // TODO : Remove all results
-  // TODO : Remove result master file
-
   const modelfile = getModelFile(ai.name)
   await exec('../bin/overmind update '
     + modelfile + ' '
     + getExperienceFile(ai.name) + ' '
     + modelfile)
+
+  fs.unlink(getExperienceFile(ai.name))
+  fs.readdir('.', (err, files) => {
+    const rx = new RegExp('^' + ai.name + '\\.\\d+$')
+    for(let i = 0; i < files.length; ++i) {
+      if(files[i].match(rx)) {
+        fs.unlink('rollouts/' + files[i]);
+      }
+    }
+  });
 
   // Set new model as active
   delete models[ai.model]
