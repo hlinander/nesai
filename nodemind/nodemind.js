@@ -117,7 +117,7 @@ app.get('/model/:hash', (req, res) => {
   return res.end(models[hash].data, 'binary')
 })
 
-function pending_jobs(name) {
+function pendingJobs(name) {
   let pending = 0
   for(let key in jobs) {
     if(jobs[key].name == name) {
@@ -130,11 +130,11 @@ function pending_jobs(name) {
 app.get('/job/:name', (req, res) => {
   const ai = ais[req.params.name]
   if(!ai) return res.sendStatus(500)
-  if((ai.rollouts_done + pending_jobs(ai.name)) >= ai.rollouts) return res.sendStatus(541)
+  if((ai.rollouts_done + pendingJobs(ai.name)) >= ai.rollouts) return res.sendStatus(541)
   return res.send(createJob(ai))
 })
 
-async function advance_generation(ai) {
+async function advanceGeneration(ai) {
   // TODO : Remove all results
   // TODO : Remove result master file
 
@@ -166,7 +166,7 @@ app.post('/result/:job_id', async (req, res) => {
   await fs.writeFile(experience, req.body, 'binary')
   await fs.appendFile(getExperienceFile(ai.name), experience + '\n')
   if(ai.rollouts == ++ai.rollouts_done) {
-    advance_generation(ai) // DONT await
+    advanceGeneration(ai) // DONT await
   }
   return res.sendStatus(200)
 })
