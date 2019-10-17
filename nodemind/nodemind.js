@@ -52,7 +52,7 @@ function createJob(ai) {
     expires: new Date((new Date()).getTime() + ai.job_timeout).getTime() // aids.
   }
   return {
-    job_id: j.job_id,
+    job_id,
     model: ai.model,
     rom: ai.rom,
     script: ai.script
@@ -117,10 +117,20 @@ app.get('/model/:hash', (req, res) => {
   return res.end(models[hash].data, 'binary')
 })
 
+function pending_jobs(name) {
+  let pending = 0
+  for(let key in jobs) {
+    if(jobs[key].name == name) {
+      pending++
+    }
+  }
+  return pending
+}
+
 app.get('/job/:name', (req, res) => {
   const ai = ais[req.params.name]
   if(!ai) return res.sendStatus(500)
-  if((ai.rollouts_done + ai.jobs.length) >= ai.rollouts) return res.sendStatus(541)
+  if((ai.rollouts_done + pending_jobs(ai.name)) >= ai.rollouts) return res.sendStatus(541)
   return res.send(createJob(ai))
 })
 
@@ -170,17 +180,27 @@ async function initialize() {
   
   rom_files = await fs.readdir('roms')
   for(name of rom_files) {
+    console.log('Loading ROM', name)
     const data = await fs.readFile('roms/' + name)
     const hash = md5(data)
     roms[hash] = { name, data, hash }
   }
-  console.log('Loaded ROMs', roms)
 
   script_files = await fs.readdir('scripts')
   for(name of script_files) {
+    console.log('Loading script', name)
     scripts[name] = await fs.readFile('scripts/' + name)
   }
-  console.log('Loaded scrips', scripts)
+
+  ai_files = await fs.readdir('ai')
+  for(name of ai_files) {
+    console.log('Loading AI', name)
+    const ai = JSON.parse(await fs.readFile('ai/' + name))
+    const data = await fs.readFile(getModelFile(ai.name), 'binary')
+    const hash = md5(data)
+    models[hash] = { data, hash }
+    ais[ai.name] = ai
+  }
 }
 
 app.get('/', async (req, res) => {
