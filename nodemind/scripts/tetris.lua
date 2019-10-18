@@ -15,7 +15,7 @@ function brain_get_reward()
 	--
 	-- Normalize against a tetris on level 20
 	--
-	local reward = (score - old_score) / 25200.0
+	local reward = (score - old_score) 
 	old_score = score
 	return reward
 end

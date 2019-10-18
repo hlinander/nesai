@@ -15,10 +15,10 @@ const roms = {}
 const models = {}
 const jobs = {}
 
-app.use(bodyParser.json({limit: '50mb'}));
+app.use(bodyParser.json({limit: '500mb'}));
 app.use(bodyParser.raw({
   inflate: true,
-  limit: '50mb',
+  limit: '500mb',
   type: 'application/octet-stream'
 }))
 app.use(bodyParser.urlencoded({limit: '50mb', extended: true}));
@@ -39,7 +39,7 @@ function getExperienceFile(name) {
 async function createNewModel(name) {
   const filename = getModelFile(name)
   await exec('../bin/overmind create ' + filename)
-  const data = await fs.readFile(filename, 'binary')
+  const data = await fs.readFile(filename)
   const hash = md5(data)
   models[hash] = { data, hash }
   return hash
@@ -65,8 +65,8 @@ async function saveAI(ai) {
 
 app.post('/newai', async (req, res) => {
   const {name, rollouts, job_timeout, rom, script} = req.body
-  if(!name || !rollouts || !job_timeout || !rom || !script) return req.sendStatus(500)
-  if((name in ais) || !(rom in roms) || !(script in scripts)) return req.sendStatus(501)
+  if(!name || !rollouts || !job_timeout || !rom || !script) return res.sendStatus(500)
+  if((name in ais) || !(rom in roms) || !(script in scripts)) return res.sendStatus(501)
   model = await createNewModel(name)
   ais[name] = {
     name,
@@ -136,10 +136,12 @@ app.get('/job/:name', (req, res) => {
 
 async function advanceGeneration(ai) {
   const modelfile = getModelFile(ai.name)
-  await exec('../bin/overmind update '
+  const { stdout, stderr } = await exec('../bin/overmind update '
     + modelfile + ' '
     + getExperienceFile(ai.name) + ' '
     + modelfile)
+
+  console.log(stdout);
 
   fs.unlink(getExperienceFile(ai.name))
   fs.readdir('.', (err, files) => {
@@ -166,14 +168,17 @@ async function advanceGeneration(ai) {
 
 app.post('/result/:job_id', async (req, res) => {
   const job_id = req.params.job_id
-  const ai = jobs[job_id]
-  if(!ai) return res.sendStatus(500)
+  const job = jobs[job_id]
+  if(!job) return res.sendStatus(500)
+  const ai = job.ai  
   delete jobs[job_id]
   const experience = 'rollouts/' + ai.name + '.' + job_id
   await fs.writeFile(experience, req.body, 'binary')
   await fs.appendFile(getExperienceFile(ai.name), experience + '\n')
   if(ai.rollouts == ++ai.rollouts_done) {
     advanceGeneration(ai) // DONT await
+  } else {
+    await saveAI(ai)
   }
   return res.sendStatus(200)
 })
@@ -203,9 +208,11 @@ async function initialize() {
   for(name of ai_files) {
     console.log('Loading AI', name)
     const ai = JSON.parse(await fs.readFile('ai/' + name))
-    const data = await fs.readFile(getModelFile(ai.name), 'binary')
+    const data = await fs.readFile(getModelFile(ai.name))
     const hash = md5(data)
+    console.log(hash)
     models[hash] = { data, hash }
+    console.log('Attached model', hash)
     ais[ai.name] = ai
   }
 }

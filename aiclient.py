@@ -3,6 +3,7 @@ import os
 import sys
 import time
 import json
+import subprocess
 
 model = None
 rom = None
@@ -26,11 +27,22 @@ def download(path):
 		raise Exception('Unable to download: %s' % (path))
 	return r.content
 
+def upload(path, ul):
+	global server
+	r = requests.post('%s%s' % (server, path), data=ul, headers = { 'Content-Type': 'application/octet-stream' })
+	if 200 != r.status_code:
+		raise Exception('Unable to upload: %s' % (path))
+
 def download_model(m):
 	global model
 	global name
 	if model == m:
 		return
+	if model:
+		try:
+			os.unlink('/tmp/%s.model' % (name))
+		except:
+			pass	
 	open('/tmp/%s.model' % (name), 'wb').write(download('/model/%s' % (m)))
 	model = m
 
@@ -55,6 +67,20 @@ def run_job(j):
 	download_rom(j['rom'])
 	download_script(j['script'])
 
+	env = os.environ.copy()
+	model_path = f"/tmp/{name}.model"
+	env['MODEL'] = model_path
+	env['BE'] = f'/tmp/{name}.lua'
+	p = subprocess.Popen(['luajit', 'quicknes.lua', f'/tmp/{name}.nes'], cwd='bin/', stdout=None, env=env)
+	p.wait()
+
+	experience = "%s.experience" % (model_path)
+	if not os.path.exists(experience):
+		raise Exception('luajit terminated strangely or so...?')
+
+	upload('/result/%s' % (j['job_id']), open(experience, 'rb').read())
+	os.unlink(experience)
+
 print('Using AI server: %s' % (server))
 print('Will work on "%s" as "%s".' % (ai, name))
 
@@ -63,7 +89,6 @@ while True:
 		r = get('/job/%s' % (ai))
 		if 200 == r.status_code:
 			run_job(json.loads(r.text))
-			break
 		elif 541 == r.status_code:
 			print('No jobs... trying again in 1 second.')
 			time.sleep(1.0)

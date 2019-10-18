@@ -169,7 +169,7 @@ int main(int argc, const char *argv[])
 			m.optimizer.zero_grad();
             for(auto &e : experiences)
             {
-                update_model(m, e, sm, 0.0, false);
+                std::cout << "reward " << update_model(m, e, sm, 0.0, false) << std::endl;
             }
 			m.optimizer.step();
         }

@@ -85,7 +85,7 @@ void brain_init()
 	}
 	else
 	{
-		if(nullptr != (name = getenv("NAME")))
+		if(nullptr != (name = getenv("MODEL")))
 		{
 			if(!model.load_file(name))
 			{
@@ -154,6 +154,7 @@ static float get_reward()
 	}
 	
 	float ret = static_cast<float>(lua_tonumber(L, -1));
+	// std::cout << ret << std::endl;
 	lua_pop(L, 1);
 	return ret;
 }
@@ -209,7 +210,9 @@ bool brain_on_frame()
 		//
 		// Last frame
 		//
-		model.save_file(name);
+		std::string out{name};
+		out.append(".experience");
+		model.save_file(out);
 		return false;
 	}
 	float reward = get_reward();
