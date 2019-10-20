@@ -40,9 +40,8 @@ async function createNewModel(name) {
   const filename = getModelFile(name)
   await exec('../bin/overmind create ' + filename)
   const data = await fs.readFile(filename)
-  const hash = md5(data)
-  models[hash] = { data, hash }
-  return hash
+  models[name] = { data }
+  return name
 }
 
 function createJob(ai) {
@@ -53,7 +52,7 @@ function createJob(ai) {
   }
   return {
     job_id,
-    model: ai.model,
+    ai: ai.name,
     rom: ai.rom,
     script: ai.script
   }
@@ -80,6 +79,12 @@ app.post('/newai', async (req, res) => {
   }
   await saveAI(ais[name])
   return res.sendStatus(200)
+})
+
+app.get('/generation/:name', (req, res) => {
+  const ai = ais[req.params.name]
+  if(!ai) return res.sendStatus(500)
+  return res.send({ generation: ai.generation })
 })
 
 app.get('/roms', (req, res) => {
@@ -111,10 +116,10 @@ app.get('/script/:name', (req, res) => {
   return res.send(scripts[name])
 })
 
-app.get('/model/:hash', (req, res) => {
-  const hash = req.params.hash
-  if(!(hash in models)) return res.sendStatus(500)
-  return res.end(models[hash].data, 'binary')
+app.get('/model/:name', (req, res) => {
+  const name = req.params.name
+  if(!(name in models)) return res.sendStatus(500)
+  return res.end(models[name].data, 'binary')
 })
 
 function pendingJobs(name) {
@@ -154,15 +159,12 @@ async function advanceGeneration(ai) {
   });
 
   // Set new model as active
-  delete models[ai.model]
+  delete models[ai.name]
   const data = await fs.readFile(modelfile)
-  const hash = md5(data)
-  models[hash] = { data, hash }
-  ai.model = hash
-
+  models[ai.name] = { data }
   // Reset AI and save it for next generation
-  ++ai.generation;
-  ai.rollouts_done = 0;
+  ai.rollouts_done = 0
+  ++ai.generation
   await saveAI(ai)
 }
 
@@ -209,10 +211,7 @@ async function initialize() {
     console.log('Loading AI', name)
     const ai = JSON.parse(await fs.readFile('ai/' + name))
     const data = await fs.readFile(getModelFile(ai.name))
-    const hash = md5(data)
-    console.log(hash)
-    models[hash] = { data, hash }
-    console.log('Attached model', hash)
+    models[ai.name] = { data }
     ais[ai.name] = ai
   }
 }

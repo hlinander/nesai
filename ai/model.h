@@ -14,7 +14,7 @@
 const int N_ACTIONS = 8U;
 const int N_HIDDEN = 64U;
 const int STATE_SIZE = 0x800;
-const float ACTION_THRESHOLD = 0.9f;
+const float ACTION_THRESHOLD = 0.5f;
 
 enum class Action {
     UP = 0,

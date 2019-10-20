@@ -5,9 +5,11 @@ import time
 import json
 import subprocess
 
-model = None
+generation = None
 rom = None
 script = None
+
+generation = None
 
 server = os.getenv('aiserver') or 'http://localhost:3000'
 ai = sys.argv[1]
@@ -33,18 +35,22 @@ def upload(path, ul):
 	if 200 != r.status_code:
 		raise Exception('Unable to upload: %s' % (path))
 
-def download_model(m):
-	global model
+def download_model(ai):
+	global generation
 	global name
-	if model == m:
+	r = get('/generation/' + ai)
+	if 200 != r.status_code:
+		raise Exception('Cant read ai generation')	
+	print(r.text)
+	curr_gen = int(json.loads(r.text)['generation'])
+	if generation == curr_gen: 
 		return
-	if model:
-		try:
-			os.unlink('/tmp/%s.model' % (name))
-		except:
-			pass	
-	open('/tmp/%s.model' % (name), 'wb').write(download('/model/%s' % (m)))
-	model = m
+	try:
+		os.unlink('/tmp/%s.model' % (name))
+	except:
+		pass	
+	open('/tmp/%s.model' % (name), 'wb').write(download('/model/%s' % (ai)))
+	generation = curr_gen
 
 def download_rom(dl):
 	global rom
@@ -63,7 +69,7 @@ def download_script(s):
 	script = s
 
 def run_job(j):
-	download_model(j['model'])
+	download_model(j['ai'])
 	download_rom(j['rom'])
 	download_script(j['script'])
 

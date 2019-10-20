@@ -136,13 +136,14 @@ bool brain_headless()
 	return enabled && headless;
 }
 
-static float get_reward()
+static float get_reward(uint32_t frame)
 {
 	//
-	// Check if we are good...?
+	//j Check if we are good...?
 	//
 	lua_getglobal(L, "brain_get_reward");
-	if(0 != lua_pcall(L, 0, 1, 0))
+	lua_pushnumber(L, frame);
+	if(0 != lua_pcall(L, 1, 1, 0))
 	{
 		std::cout << "LUA: Error running 'brain_get_reward': " << lua_tostring(L, -1) << std::endl;
 		exit(1);
@@ -210,12 +211,14 @@ bool brain_on_frame()
 		//
 		// Last frame
 		//
+		std::cout << "I am done!" << std::endl;
 		std::string out{name};
 		out.append(".experience");
 		model.save_file(out);
+		std::cout << "I should exit now..." << std::endl;
 		return false;
 	}
-	float reward = get_reward();
+	float reward = get_reward(frame);
 
 	StateType s;
 	for(size_t i = 0; i < STATE_SIZE; ++i) {
@@ -238,7 +241,6 @@ bool brain_on_frame()
 	gp_bits |= a[static_cast<size_t>(Action::RIGHT)] << 7;
 	++fps;
 	auto now = get_ms();
-
 	if(next_fps < now)
 	{
 		std::cout << "FPS: " << fps << std::endl;
