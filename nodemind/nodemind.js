@@ -175,10 +175,11 @@ app.post('/result/:job_id', async (req, res) => {
   const ai = job.ai  
   delete jobs[job_id]
   const experience = 'rollouts/' + ai.name + '.' + job_id
+  console.log(`Job ${job_id} completed. Length ${req.body.length}`)
   await fs.writeFile(experience, req.body, 'binary')
   await fs.appendFile(getExperienceFile(ai.name), experience + '\n')
   if(ai.rollouts == ++ai.rollouts_done) {
-    advanceGeneration(ai) // DONT await
+    await advanceGeneration(ai)
   } else {
     await saveAI(ai)
   }

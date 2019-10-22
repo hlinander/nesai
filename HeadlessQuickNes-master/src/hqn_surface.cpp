@@ -21,7 +21,7 @@ namespace hqn
 #ifdef __WIN32__
 #define DEFAULT_FONT "C:/Windows/Fonts/cour.ttf" // Courier New
 #elif defined(__LINUX__) || defined(__OPENBSD__) || defined(__NETBSD__)
-#define DEFAULT_FONT "/usr/share/fonts/truetype/freefont/FreeMono.ttf"
+#define DEFAULT_FONT "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
 #else
 #error Failed to determine default font path for platform
 #endif

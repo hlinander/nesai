@@ -7,7 +7,7 @@
 
 #define DEBUG(...)
 
-const float LR = 0.0001;//0.00000001;
+const float LR = 0.001;//0.00000001;
 const int BATCH_SIZE = 1000;
 const int PPO_EPOCHS = 1;
 const bool DEBUG = nullptr != getenv("DEBUG");
@@ -51,13 +51,13 @@ Reward calculate_rewards(Model &experience) {
 	ret.rewards.resize(experience.get_frames());
 	std::fill(std::begin(ret.rewards), std::end(ret.rewards), 0.0f);
 	ret.total_reward = 0.0;
-	float reward = -1.0;
+	float reward = 0.0;
     debug_log << "LUA rewards " << std::endl;
 	for (int frame = experience.get_frames() - 1; frame >= 1; --frame) {
-        if(experience.immidiate_rewards[frame] > 0) {
+        if(fabs(experience.immidiate_rewards[frame]) > 0.000000001) {
             debug_log << "f " << frame << ": " << experience.immidiate_rewards[frame] << ", ";
         }
-		// reward += experience.immidiate_rewards[frame];
+		reward += experience.immidiate_rewards[frame];
 		reward *= 0.99;
 		ret.rewards[frame] = reward;
 	}
@@ -156,9 +156,7 @@ float update_model(Model &m, Model &experience, stat_map &stats, const float avg
 
 int main(int argc, const char *argv[])
 {
-    // std::vector<float> test{0.0, 1.0, -2.0, -30.0};
-    // std::vector<float> normed = normalize_rewards(test);
-    
+    srand(time(0));
     if(DEBUG)
     {
         debug_log.open("overmind.log");
@@ -180,6 +178,15 @@ int main(int argc, const char *argv[])
 
         Model m(LR);
         m.save_file(argv[2]);
+    }
+    else if(0 == strcmp(argv[1], "load")) 
+    {
+        Model m(LR);
+        if(!m.load_file(argv[2]))
+        {
+            std::cout << "The horse has no carrot" << std::endl;
+            return 1;
+        }
     }
     else if(0 == strcmp(argv[1], "update"))
     {
@@ -203,11 +210,15 @@ int main(int argc, const char *argv[])
             Benchmark b{"exp_load"};
             while(std::getline(in, str))
             {
-                experiences.emplace_back(Model(LR));
-                if(!experiences.back().load_file(str))
-                {
-                    std::cout << "Missing exp: " << str << std::endl;
-                    return 3;
+                try {
+                    experiences.emplace_back(Model(LR));
+                    if(!experiences.back().load_file(str))
+                    {
+                        std::cout << "Missing exp: " << str << std::endl;
+                        return 3;
+                    }
+                } catch(const std::exception &e) {
+                    std::cout << "FIXTHISFFS:" << e.what() << std::endl;
                 }
             }
         }
@@ -223,6 +234,23 @@ int main(int argc, const char *argv[])
                 total_frames += e.get_frames();
             }
 			m.optimizer.step();
+            if(m.net->isnan()) {
+                std::cout << "Doomed tensors!" << std::endl;
+                for(auto &e : experiences)
+                {
+                    std::cout << "experience" << std::endl;
+                    for(int i = 0; i < e.get_frames(); ++i)
+                    {
+                        if(fabs(e.immidiate_rewards[i]) > 0.0001)
+                            debug_log << e.immidiate_rewards[i] << std::endl;
+                    }
+                }
+
+            }
+        }
+        auto np = m.net->named_parameters();
+        for(auto &ref : np.pairs()) {
+            std::cout << "mean: " << ref.second.mean().item<float>() << " std: " << ref.second.std().item<float>() << std::endl;
         }
         if(DEBUG) 
         {

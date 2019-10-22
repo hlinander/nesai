@@ -15,6 +15,7 @@ const int N_ACTIONS = 8U;
 const int N_HIDDEN = 64U;
 const int STATE_SIZE = 0x800;
 const float ACTION_THRESHOLD = 0.5f;
+const float EPS_EXPLORE = 0.01f;
 
 enum class Action {
     UP = 0,
@@ -64,6 +65,15 @@ struct Net : torch::nn::Module {
 		x = torch::leaky_relu(fc2->forward(x));
 		x = fc3->forward(x);
 		return x;
+	}
+
+	bool isnan() const {
+		for(auto& t: parameters()) {
+			if(at::any(at::isnan(t)).item<bool>()) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	torch::nn::BatchNorm bn{nullptr};
@@ -159,8 +169,14 @@ struct Model {
 		auto out_a = out.accessor<float,2>();
         std::array<uint8_t, ACTION_SIZE> actions;
         for(size_t i = 0; i < ACTION_SIZE; i++){
+			// std::cout << out_a[0][i] << ", ";
             actions[i] = out_a[0][i] > ACTION_THRESHOLD ? 1 : 0;
+			float r = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+			if(r < EPS_EXPLORE) {
+				actions[i] ^= 1;
+			}
         }
+		// std::cout << std::endl;
 		return actions;
 	}
 

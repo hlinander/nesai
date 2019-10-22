@@ -79,13 +79,18 @@ def run_job(j):
 	env['BE'] = f'/tmp/{name}.lua'
 	p = subprocess.Popen(['luajit', 'quicknes.lua', f'/tmp/{name}.nes'], cwd='bin/', stdout=None, env=env)
 	p.wait()
-
 	experience = "%s.experience" % (model_path)
-	if not os.path.exists(experience):
-		raise Exception('luajit terminated strangely or so...?')
+	if 0 == p.returncode:
+		if not os.path.exists(experience):
+			raise Exception('luajit terminated strangely or so...?')
+		upload('/result/%s' % (j['job_id']), open(experience, 'rb').read())
+	else:
+		print('Sad client %d' % (p.returncode))
 
-	upload('/result/%s' % (j['job_id']), open(experience, 'rb').read())
-	os.unlink(experience)
+	try:
+		os.unlink(experience)
+	except:
+		pass
 
 print('Using AI server: %s' % (server))
 print('Will work on "%s" as "%s".' % (ai, name))

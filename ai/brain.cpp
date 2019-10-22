@@ -160,6 +160,25 @@ static float get_reward(uint32_t frame)
 	return ret;
 }
 
+static int override_input(uint32_t frame)
+{
+	lua_getglobal(L, "brain_override_input");
+	lua_pushnumber(L, frame);
+	if(0 != lua_pcall(L, 1, 1, 0))
+	{
+		std::cout << "LUA: Error running 'brain_override_input': " << lua_tostring(L, -1) << std::endl;
+		exit(1);
+	}
+	if(!lua_isnumber(L, -1))
+	{
+		std::cout << "LUA: 'brain_override_input' not returning an bool" << std::endl;
+		exit(1);	
+	}
+	
+	int ret = static_cast<int>(lua_tonumber(L, -1));
+	lua_pop(L, 1);
+	return ret;
+}
 static bool validate_frame(uint32_t frame)
 {
 	//
@@ -226,19 +245,24 @@ bool brain_on_frame()
 	}
 	ActionType a = model.get_action(s);
 	model.record_action(s, a, reward);
-	// for(auto& val: a) {
-	// 	std::cout << (int)val << ", ";
-	// }
-	// std::cout << std::endl;
-	gp_bits = 0;
-	gp_bits |= a[static_cast<size_t>(Action::A)] << 0;
-	gp_bits |= a[static_cast<size_t>(Action::B)] << 1;
-	gp_bits |= a[static_cast<size_t>(Action::SELECT)] << 2;
-	gp_bits |= a[static_cast<size_t>(Action::START)] << 3;
-	gp_bits |= a[static_cast<size_t>(Action::UP)] << 4;
-	gp_bits |= a[static_cast<size_t>(Action::DOWN)] << 5;
-	gp_bits |= a[static_cast<size_t>(Action::LEFT)] << 6;
-	gp_bits |= a[static_cast<size_t>(Action::RIGHT)] << 7;
+
+	int override = override_input(frame);
+	if(-1 == override)
+	{
+		gp_bits = 0;
+		gp_bits |= a[static_cast<size_t>(Action::A)] << 0;
+		gp_bits |= a[static_cast<size_t>(Action::B)] << 1;
+		// gp_bits |= a[static_cast<size_t>(Action::SELECT)] << 2;
+		// gp_bits |= a[static_cast<size_t>(Action::START)] << 3;
+		gp_bits |= a[static_cast<size_t>(Action::UP)] << 4;
+		gp_bits |= a[static_cast<size_t>(Action::DOWN)] << 5;
+		gp_bits |= a[static_cast<size_t>(Action::LEFT)] << 6;
+		gp_bits |= a[static_cast<size_t>(Action::RIGHT)] << 7;
+	}
+	else
+	{
+		gp_bits = static_cast<uint8_t>(override);
+	}
 	++fps;
 	auto now = get_ms();
 	if(next_fps < now)

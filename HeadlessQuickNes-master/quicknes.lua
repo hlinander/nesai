@@ -5,6 +5,13 @@
 hq = require("hqnes")
 brain = require("brain")
 
+function ternary(c, t, f)
+    if c then
+        return t
+    end
+    return f
+end
+
 function bool(value)
   if value ~= 0 then
     return true
@@ -13,8 +20,32 @@ function bool(value)
 end
 
 function run_brain_mode()
+    local last = ""
+    local changes = 0
     while brain.on_frame() do
         local bits = brain.controller_bits()
+
+        if not brain.headless() then
+            local buttons = ""
+            buttons = buttons .. ternary(bool(bit.band(bits, 0x40)), "L", "_")
+            buttons = buttons .. ternary(bool(bit.band(bits, 0x80)), "R", "_")
+            buttons = buttons .. ternary(bool(bit.band(bits, 0x10)), "U", "_")
+            buttons = buttons .. ternary(bool(bit.band(bits, 0x20)), "D", "_")
+            buttons = buttons .. ternary(bool(bit.band(bits, 0x08)), "S", "_")
+            buttons = buttons .. ternary(bool(bit.band(bits, 0x04)), "X", "_")
+            buttons = buttons .. ternary(bool(bit.band(bits, 0x02)), "B", "_")
+            buttons = buttons .. ternary(bool(bit.band(bits, 0x01)), "A", "_")
+
+            if buttons ~= last then
+                changes = changes + 1
+            end
+            hq.gui.drawRectangle(5, 5, 200, 200, 0x0000FFFF, 0xFFFFFFFF)
+            hq.gui.drawText(10, 10, buttons, 0x000000FF, 32)
+            hq.gui.drawText(10, 46, "C: " .. tostring(changes), 0x000000FF, 32)
+
+            last = buttons
+        end
+
         hq.joypad.set{
             right = bool(bit.band(bits, 0x80)),
             left = bool(bit.band(bits, 0x40)),
