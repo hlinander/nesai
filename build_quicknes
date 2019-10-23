@@ -6,4 +6,4 @@ mkdir -p bin
 (cd HeadlessQuickNes-master/linux && \
 	make && \
 	cd .. && \
-	cp hqnes.lua quicknes.lua libhqnes.so ../bin)
+	cp hqn_quicknes ../bin)

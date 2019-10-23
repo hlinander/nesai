@@ -1,49 +1,30 @@
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
+#include "hqn.h"
+#include "hqn_gui_controller.h"
 
-std::string read_env(const char *name)
-{
-	std::string s;
-	DWORD n = GetEnvironmentVariableA("HL", NULL, 0);
-	s.resize(n);
-	GetEnvironmentVariableA("HL", s.data(), s.size());
-	return s;
-}
+#include <brain.h>
 
-#else
-#include <unistd.h>
+#include <string>
+#include <iostream>
+#include <SDL.h>
+#include <SDL_video.h>
+#include <SDL_keyboard.h>
+#include <SDL_scancode.h>
+#include <SDL_mouse.h>
 
-std::string read_env(const char *name)
-{
-	std::string s;
-	const char *p = getenv(name);
-	if(p)
-	{
-		s = p;
-	}
-	return s;
-}
-#endif
+using namespace hqn;
 
-static const bool brain_headless = !read_env("HL").empty();
-static const std::string brain_script = read_env("BE");
+static HQNState hqn_state;
 
-static bool brain_enabled()
-{
-	return !brain_script.empty();
-}
+#define GET_GUI() hqn::GUIController *gui = static_cast<hqn::GUIController*>(hqn_state.getListener())
 
 static void ngui_setscale(int scale = 1)
 {
-	STATE_GUI(state, gui);
+	GET_GUI();
 	gui->setScale(scale);
 }
 
 static bool ngui_enable()
 {
-    HQN_STATE(state);
- 
     if(!SDL_WasInit(SDL_INIT_VIDEO))
     {
         if(SDL_InitSubSystem(SDL_INIT_VIDEO) != 0)
@@ -52,14 +33,14 @@ static bool ngui_enable()
         }
     }
 
-    GET_GUI(state, gui);
+    GET_GUI();
     if(!gui)
     {
         hqn::GUIController *controller = nullptr;
 
-        if(controller = hqn::GUIController::create(*state))
+        if(controller = hqn::GUIController::create(hqn_state))
         {
-            state->setListener(controller);
+            hqn_state.setListener(controller);
             controller->setCloseOperation(hqn::GUIController::CLOSE_DELETE);
         }
         else
@@ -72,14 +53,12 @@ static bool ngui_enable()
 
 static void nemu_setframerate(int fps)
 {
-	HQN_STATE(state);
-	state->setFramerate(fps);
+	hqn_state.setFramerate(fps);
 }
 
 static bool nemu_loadrom(const char *romname)
 {
-	HQN_STATE(state);
-	const char *err = state->loadROM(romname);
+	const char *err = hqn_state.loadROM(romname);
 	if(err)
 	{
 		std::cout << "Error when loading ROM " << romname << ": " << err << std::endl;
@@ -90,14 +69,18 @@ static bool nemu_loadrom(const char *romname)
 
 static void njoypad_set(int pad, uint8_t bits)
 {
-	HQN_STATE(state);
-	state->joypad[pad] = bits;
+	hqn_state.joypad[pad] = bits;
 }
 
 static void nemu_frameadvance()
 {
-	HQN_STATE(state);
-	state->advanceFrame();
+	hqn_state.advanceFrame();
+}
+
+static bool ngui_isenabled()
+{
+    GET_GUI();
+    return (nullptr != gui);
 }
 
 struct gamepad_binding
@@ -128,12 +111,12 @@ static int run_human_mode()
 		{ SDL_SCANCODE_RIGHT, 0x80 },
 	};
 
-	for(;;)
+	while(ngui_isenabled())
 	{
 		uint8_t bits = 0;
 		const Uint8 *kb = SDL_GetKeyboardState(NULL);
 		
-		for(size_t i = 0; i < (sizeof(bindings) / sizeof(bindings[0]); ++i)
+		for(size_t i = 0; i < (sizeof(bindings) / sizeof(bindings[0])); ++i)
 		{
 			const auto &b = bindings[i];
 			if(kb[b.sdl_scancode])
@@ -151,18 +134,79 @@ static int run_human_mode()
 
 static int run_brain_mode()
 {
-	
+	while(brain_on_frame())
+	{
+		uint8_t bits = brain_controller_bits();
+
+		if(!brain_headless())
+		{
+		}
+
+		njoypad_set(0, bits);
+		nemu_frameadvance();
+	}
+/*	
+    local last = ""
+    local changes = 0
+    while brain.on_frame() do
+        local bits = brain.controller_bits()
+
+        if not brain.headless() then
+            local buttons = ""
+            buttons = buttons .. ternary(bool(bit.band(bits, 0x40)), "L", "_")
+            buttons = buttons .. ternary(bool(bit.band(bits, 0x80)), "R", "_")
+            buttons = buttons .. ternary(bool(bit.band(bits, 0x10)), "U", "_")
+            buttons = buttons .. ternary(bool(bit.band(bits, 0x20)), "D", "_")
+            buttons = buttons .. ternary(bool(bit.band(bits, 0x08)), "S", "_")
+            buttons = buttons .. ternary(bool(bit.band(bits, 0x04)), "X", "_")
+            buttons = buttons .. ternary(bool(bit.band(bits, 0x02)), "B", "_")
+            buttons = buttons .. ternary(bool(bit.band(bits, 0x01)), "A", "_")
+
+            if buttons ~= last then
+                changes = changes + 1
+            end
+            hq.gui.drawRectangle(5, 5, 200, 200, 0x0000FFFF, 0xFFFFFFFF)
+            hq.gui.drawText(10, 10, buttons, 0x000000FF, 32)
+            hq.gui.drawText(10, 46, "C: " .. tostring(changes), 0x000000FF, 32)
+
+            last = buttons
+        end
+
+        hq.joypad.set{
+            right = bool(bit.band(bits, 0x80)),
+            left = bool(bit.band(bits, 0x40)),
+            down = bool(bit.band(bits, 0x20)),
+            up = bool(bit.band(bits, 0x10)),
+            start = bool(bit.band(bits, 0x08)),
+            select = bool(bit.band(bits, 0x04)),
+            b = bool(bit.band(bits, 0x02)),
+            a = bool(bit.band(bits, 0x01)),
+        }
+        hq.emu.frameadvance()
+    end
+			();
+		brain_on_frame();
+*/
 }
 
 int main(int argc, const char *argv[])
 {
+	SDL_SetMainReady();
+	brain_init();
+
 	if(argc < 2)
 	{
 		std::cout << "Usage: " << argv[0] << " <rom>" << std::endl;
 		return 1;
 	}
 
-	if(!brain_headless)
+	if(!nemu_loadrom(argv[1]))
+	{
+		std::cout << "No rom :(" << std::endl;
+		return 1;
+	}
+
+	if(!brain_headless())
 	{
 		if(!ngui_enable())
 		{
@@ -174,17 +218,14 @@ int main(int argc, const char *argv[])
 
 	nemu_setframerate(0);
 
-	if(!nemu_loadrom(argv[1]))
-	{
-		std::cout << "No rom :(" << std::endl;
-		return 1;
-	}
-
 	if(brain_enabled())
 	{
+		brain_bind_cpu_mem(hqn_state.emu()->low_mem());
 		return run_brain_mode();
 	}
 
 	return run_human_mode();
 }
+
+
 

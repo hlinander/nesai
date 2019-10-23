@@ -1,6 +1,10 @@
-
 LIB_QUICKNES = ../quicknes/libquicknes.a
-LINKFLAGS = -L ../quicknes/ -lSDL2_ttf -lquicknes -ldl `pkg-config --libs sdl2 luajit`
+
+ifeq ($(lib), yes)
+
+TARGET = ../libhqnes.so
+
+LINKFLAGS = -L ../quicknes/ -lSDL2_ttf -lquicknes -ldl `pkg-config --libs sdl2 luajit -shared`
 CXXFLAGS = -std=c++11 -I ../quicknes -O3 -Wno-multichar -fno-exceptions -fpermissive -fPIC \
 		   `pkg-config --cflags sdl2 luajit`
 
@@ -18,14 +22,38 @@ SOURCES = \
 	../src/hqn_surface.cpp
 #   ../src/hqn_main.cpp    <-- Don't include this because it's not necessary for shared build
 
+else
+
+TARGET = ../hqn_quicknes
+
+LINKFLAGS = -L ../quicknes/ -lSDL2_ttf -llua -lcuda -ltorch -lc10 -lquicknes -ldl `pkg-config --libs sdl2`
+
+CXXFLAGS = -std=c++11 -I ../quicknes -O3 -Wno-multichar -fpermissive -fPIC \
+		   `pkg-config --cflags sdl2`
+
+CXXFLAGS += -I../../ai
+CXXFLAGS += -I../../ai/cereal-1.2.2/include
+CXXFLAGS += -I/usr/include/torch/csrc/api/include
+
+SOURCES = \
+	../src/hqn.cpp \
+	../src/hqn_util.cpp \
+	../src/hqn_gui_controller.cpp \
+	../src/hqn_surface.cpp \
+	../src/hqn_native.cpp \
+	../../ai/brain.cpp
+
+endif
+
 OBJECTS = $(SOURCES:.cpp=.o) \
 
 %.o: %.cpp
+	echo $(CXXFLAGS)
 	$(CXX) -c -o $@ $< $(CXXFLAGS)
 
 # Build as shared library
-../libhqnes.so: $(OBJECTS) $(LIB_QUICKNES)
-	$(CXX) -o $@ $(OBJECTS) $(LINKFLAGS) -fPIC -shared
+$(TARGET): $(OBJECTS) $(LIB_QUICKNES)
+	$(CXX) -o $@ $(OBJECTS) $(LINKFLAGS) -fPIC
 
 $(LIB_QUICKNES):
 	$(MAKE) -C ../quicknes/linux
@@ -33,5 +61,5 @@ $(LIB_QUICKNES):
 clean:
 	$(RM) $(OBJECTS)
 	$(RM) $(LIB_QUICKNES)
-	$(RM) ../hqnes.so ../hqnes
+	$(RM) $(TARGET)
 
