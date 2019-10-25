@@ -1,6 +1,6 @@
 rm ai/vinst.json
 rm models/vinst.model
-rm rollouts/*
+#rm rollouts/*
 cp ai/hatt.json ai/vinst.json
 cp models/hatt.model models/vinst.model
 DEBUG=yes node nodemind.js

@@ -4,15 +4,18 @@
 #include <algorithm>
 #include "model.h"
 #include "bm.h"
+#include "json.hpp"
 
 #define DEBUG(...)
 
-const float LR = 0.001;//0.00000001;
+const float LR = 0.01;//0.00000001;
 const int BATCH_SIZE = 1000;
 const int PPO_EPOCHS = 1;
 const bool DEBUG = nullptr != getenv("DEBUG");
 
 static std::ofstream debug_log;
+static std::ofstream doom_log;
+static nlohmann::json json;
 
 using stat_map = std::unordered_map<std::string, size_t>;
 struct Reward {
@@ -161,6 +164,7 @@ int main(int argc, const char *argv[])
     {
         debug_log.open("overmind.log");
     }
+    debug_log.open("doom.log", std::ofstream::app);
 
     if(argc < 2)
     {
@@ -225,12 +229,15 @@ int main(int argc, const char *argv[])
 
         stat_map sm;
         int total_frames = 0;
+        float reward = 0;
+        int n_rewards = 0;
 		for(int epoch = 0; epoch < PPO_EPOCHS; epoch++) {
 			Benchmark bepoch{"epoch"};
 			m.optimizer.zero_grad();
             for(auto &e : experiences)
             {
-                std::cout << "reward " << update_model(m, e, sm, 0.0, false) << std::endl;
+                reward += update_model(m, e, sm, 0.0, false);
+                ++n_rewards;
                 total_frames += e.get_frames();
             }
 			m.optimizer.step();
@@ -242,16 +249,21 @@ int main(int argc, const char *argv[])
                     for(int i = 0; i < e.get_frames(); ++i)
                     {
                         if(fabs(e.immidiate_rewards[i]) > 0.0001)
-                            debug_log << e.immidiate_rewards[i] << std::endl;
+                            doom_log << e.immidiate_rewards[i] << std::endl;
                     }
                 }
 
             }
         }
         auto np = m.net->named_parameters();
+        json["parameters"] = nlohmann::json({});
+        json["rewards"] = calculate_rewards(experiences[0]).rewards;
         for(auto &ref : np.pairs()) {
             std::cout << "mean: " << ref.second.mean().item<float>() << " std: " << ref.second.std().item<float>() << std::endl;
+            json["parameters"][ref.first]["mean"] = ref.second.mean().item<float>();
+            json["parameters"][ref.first]["stddev"] = ref.second.std().item<float>();
         }
+        json["mean_reward"] = reward / static_cast<float>(n_rewards);
         if(DEBUG) 
         {
             auto np = m.net->named_parameters();
@@ -264,6 +276,18 @@ int main(int argc, const char *argv[])
         }
         
         m.save_file(argv[4]);
+        std::ifstream old("metrics.json");
+        nlohmann::json old_json;
+        try {
+            old >> old_json;
+        }
+        catch(nlohmann::json::exception& e)
+        {
+            old_json = nlohmann::json::array();
+        }
+        old_json.push_back(json);
+        std::ofstream out("metrics.json");
+        out << std::setw(4) << old_json << std::endl;
     }
     else
     {

@@ -77,6 +77,7 @@ static int brain_lua_log(lua_State *L)
 
 void brain_init()
 {
+	srand(time(0));
 	const char *script = getenv("BE");
 
 	if(nullptr == script)

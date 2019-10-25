@@ -1,0 +1,16 @@
+library(rjson)
+library(ggplot2)
+library(gridExtra)
+library(reshape2)
+json_data <- fromJSON(file="metrics.json")
+data <- unstack(data.frame(d<-unlist(json_data), names(d)))
+"
+p1 <- ggplot(data, aes(x=seq(1, length(data$mean_reward)))) + geom_point(aes(y=parameters.fc3.weight.stddev)) + geom_point(aes(y=parameters.fc2.weight.stddev)) + geom_point(aes(y=parameters.fc1.weight.stddev))
+p2 <- ggplot(data, aes(x=seq(1, length(data$mean_reward)))) + geom_point(aes(y=parameters.fc3.weight.mean)) + geom_point(aes(y=parameters.fc2.weight.mean)) + geom_point(aes(y=parameters.fc1.weight.mean))
+grid.arrange(p1, p2, nrow=1)
+"
+data$ids = seq(1, length(data$mean_reward))
+params <- subset(data, select=-c(mean_reward))
+df <- melt(params, id.vars="ids", variable.name = 'series')
+p1 <- ggplot(df, aes(x=ids, y=value)) + geom_line(aes(color=series))
+print(p1)

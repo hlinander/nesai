@@ -149,14 +149,15 @@ async function advanceGeneration(ai) {
   console.log(stdout);
 
   fs.unlink(getExperienceFile(ai.name))
-  fs.readdir('.', (err, files) => {
-    const rx = new RegExp('^' + ai.name + '\\.\\d+$')
-    for(let i = 0; i < files.length; ++i) {
-      if(files[i].match(rx)) {
-        fs.unlink('rollouts/' + files[i]);
-      }
+  console.log("going to delete files")
+  files = await fs.readdir('./rollouts/');
+  const rx = new RegExp('^' + ai.name + '\\.\\d+$')
+  for(let i = 0; i < files.length; ++i) {
+    console.log(files[i]);
+    if(files[i].match(rx)) {
+      fs.unlink('rollouts/' + files[i]);
     }
-  });
+  }
 
   // Set new model as active
   delete models[ai.name]
