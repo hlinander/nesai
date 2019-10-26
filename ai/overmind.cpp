@@ -8,9 +8,9 @@
 
 #define DEBUG(...)
 
-const float LR = 0.01;//0.00000001;
+const float LR = 0.001;//0.00000001;
 const int BATCH_SIZE = 1000;
-const int PPO_EPOCHS = 1;
+const int PPO_EPOCHS = 3;
 const bool DEBUG = nullptr != getenv("DEBUG");
 
 static std::ofstream debug_log;
@@ -131,16 +131,16 @@ float update_model(Model &m, Model &experience, stat_map &stats, const float avg
         auto thresh = (ACTION_THRESHOLD * torch::ones({(long)actual_bs, ACTION_SIZE})).to(m.net->device);
 
 		auto logp = m.forward_batch_nice(experience.get_batch(frame, frame + actual_bs));
-		auto p = torch::sigmoid(logp) - thresh;
-		auto old_p = torch::sigmoid(experience.forward_batch_nice(frame, frame + actual_bs)) - thresh;
+		auto p = torch::sigmoid(logp);
+		auto old_p = torch::sigmoid(experience.forward_batch_nice(frame, frame + actual_bs));
 
         std::array<float, BATCH_SIZE * ACTION_SIZE> rewards_batch{};
 		for(size_t i = 0; i < actual_bs; ++i) {
             for(size_t j = 0; j < ACTION_SIZE; ++j) {
-                // if(experience.actions[frame + i][j] != 0) {
-                rewards_batch[i * ACTION_SIZE + j] = reward.rewards[frame + i];
+                if(experience.actions[frame + i][j] != 0) {
+                    rewards_batch[i * ACTION_SIZE + j] = reward.rewards[frame + i];
                     // debug_log << reward.rewards[frame + i] << std::endl;
-                // }
+                }
             }
 		}
 		auto trewards = torch::from_blob(static_cast<void*>(rewards_batch.data()), {(long)actual_bs, ACTION_SIZE}, torch::kFloat32);
@@ -256,12 +256,17 @@ int main(int argc, const char *argv[])
             }
         }
         auto np = m.net->named_parameters();
+        json["parameter_stats"] = nlohmann::json({});
         json["parameters"] = nlohmann::json({});
         json["rewards"] = calculate_rewards(experiences[0]).rewards;
         for(auto &ref : np.pairs()) {
             std::cout << "mean: " << ref.second.mean().item<float>() << " std: " << ref.second.std().item<float>() << std::endl;
-            json["parameters"][ref.first]["mean"] = ref.second.mean().item<float>();
-            json["parameters"][ref.first]["stddev"] = ref.second.std().item<float>();
+            auto cp = ref.second.to(torch::kCPU);
+            int64_t nel = std::min(cp.numel(), static_cast<int64_t>(1000));
+            std::vector<float> p(cp.data<float>(), cp.data<float>() + nel);
+            json["parameters"][ref.first]["values"] = p;
+            json["parameter_stats"][ref.first]["mean"] = ref.second.mean().item<float>();
+            json["parameter_stats"][ref.first]["stddev"] = ref.second.std().item<float>();
         }
         json["mean_reward"] = reward / static_cast<float>(n_rewards);
         if(DEBUG) 

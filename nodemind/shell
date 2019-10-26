@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-nix-shell --packages 'rWrapper.override{packages = [ rPackages.ggplot2 rPackages.rjson rPackages.gridExtra  ];}'
+nix-shell --packages 'rWrapper.override{packages = [ rPackages.ggplot2 rPackages.rjson rPackages.gridExtra rPackages.data_table rPackages.ggridges rPackages.plotly rPackages.plyr];}'
