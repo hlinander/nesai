@@ -128,13 +128,14 @@ float update_model(Model &m, Model &experience, stat_map &stats, const float avg
 	for (int frame = 0; frame < experience.get_frames(); frame+=BATCH_SIZE) {
 		DEBUG("Frame %d\n", frame);
 		size_t actual_bs = std::min(BATCH_SIZE, experience.get_frames() - frame);
-        auto thresh = (ACTION_THRESHOLD * torch::ones({(long)actual_bs, ACTION_SIZE})).to(m.net->device);
+        // auto thresh = (ACTION_THRESHOLD * torch::ones({(long)actual_bs, ACTION_SIZE})).to(m.net->device);
 
 		auto logp = m.forward_batch_nice(experience.get_batch(frame, frame + actual_bs));
 		auto p = torch::sigmoid(logp);
 		auto old_p = torch::sigmoid(experience.forward_batch_nice(frame, frame + actual_bs));
 
         std::array<float, BATCH_SIZE * ACTION_SIZE> rewards_batch{};
+        std::fill(std::begin(rewards_batch), std::end(rewards_batch), 0.0f);
 		for(size_t i = 0; i < actual_bs; ++i) {
             for(size_t j = 0; j < ACTION_SIZE; ++j) {
                 if(experience.actions[frame + i][j] != 0) {
