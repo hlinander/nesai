@@ -33,7 +33,7 @@ function brain_get_reward(frame)
 		if old_lives ~= lives then
 			old_lives = lives
 			print("NEGATIVE REWARD")
-			return -10
+			return -1000
 		end
 	end
 	local d6 = read_cpu(0x370)
