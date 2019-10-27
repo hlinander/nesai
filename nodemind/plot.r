@@ -50,7 +50,8 @@ plot_rewards = function(data) {
 	df$id <- seq_len(nrow(df))
 	melted <- melt(df, id.vars="id", variable.name="series")
 	# res <- ggplot(melted, aes(x=id, y=rep(0, nrow(melted)), height=value, group=series)) + geom_ridgeline()
-	res <- ggplot(melted, aes(x=id, y=series, height=value)) + geom_density_ridges(stat="identity", scale=1)
+	# res <- ggplot(melted, aes(x=id, y=series, height=value)) + geom_density_ridges(stat="identity", scale=1)
+	res <- ggplot(melted, aes(x=id, y=value, fill = value > 0)) + geom_col() + facet_grid(series~.)
 	return(res)
 }
 
