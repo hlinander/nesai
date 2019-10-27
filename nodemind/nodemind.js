@@ -28,8 +28,8 @@ function md5(data) {
   return crypto.createHash('md5').update(data).digest("hex")
 }
 
-function getModelFile(name) {
-  return 'models/' + name + '.model'
+function getModelFile(name, generation) {
+  return 'models/' + name + '.' + generation + '.model'
 }
 
 function getExperienceFile(name) {
@@ -37,7 +37,7 @@ function getExperienceFile(name) {
 }
 
 async function createNewModel(name) {
-  const filename = getModelFile(name)
+  const filename = getModelFile(name, 0)
   await exec('../bin/overmind create ' + filename)
   const data = await fs.readFile(filename)
   models[name] = { data }
@@ -140,9 +140,9 @@ app.get('/job/:name', (req, res) => {
 })
 
 async function advanceGeneration(ai) {
-  const modelfile = getModelFile(ai.name)
+  const modelfile = getModelFile(ai.name, ai.generation + 1)
   const { stdout, stderr } = await exec('../bin/overmind update '
-    + modelfile + ' '
+    + getModelFile(ai.name, ai.generation) + ' '
     + getExperienceFile(ai.name) + ' '
     + modelfile)
 
@@ -212,7 +212,7 @@ async function initialize() {
   for(name of ai_files) {
     console.log('Loading AI', name)
     const ai = JSON.parse(await fs.readFile('ai/' + name))
-    const data = await fs.readFile(getModelFile(ai.name))
+    const data = await fs.readFile(getModelFile(ai.name, ai.generation))
     models[ai.name] = { data }
     ais[ai.name] = ai
   }
