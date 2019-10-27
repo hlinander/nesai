@@ -4,7 +4,6 @@ library(gridExtra)
 library(reshape2)
 library(ggridges)
 
-json_data <- fromJSON(file="metrics.json")
 
 plot_parameters = function(data, layer) {
 	data <- lapply(data, function(e) { e$parameters })
@@ -49,7 +48,8 @@ plot_rewards = function(data) {
 	return(res)
 }
 
-plot_all = function(data) {
+plot_all = function() {
+	data <- fromJSON(file="metrics.json")
 	w1 <- plot_parameters(data, 'fc1.weight')
 	w2 <- plot_parameters(data, 'fc2.weight')
 	w3 <- plot_parameters(data, 'fc3.weight')

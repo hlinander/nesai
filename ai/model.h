@@ -42,6 +42,9 @@ struct Net : torch::nn::Module {
 		torch::nn::init::xavier_normal_(fc1->weight);
 		torch::nn::init::xavier_normal_(fc2->weight);
 		torch::nn::init::xavier_normal_(fc3->weight);
+		// torch::nn::init::zeros_(fc1->weight);
+		// torch::nn::init::zeros_(fc2->weight);
+		// torch::nn::init::zeros_(fc3->weight);
 		torch::nn::init::zeros_(fc3->bias);
 		torch::nn::init::zeros_(fc2->bias);
 		torch::nn::init::zeros_(fc1->bias);
@@ -61,8 +64,8 @@ struct Net : torch::nn::Module {
 	}
 
 	torch::Tensor forward(torch::Tensor x) {
-		x = torch::leaky_relu(fc1->forward(x));
-		x = torch::leaky_relu(fc2->forward(x));
+		x = torch::tanh(fc1->forward(x));
+		x = torch::tanh(fc2->forward(x));
 		x = fc3->forward(x);
 		return x;
 	}

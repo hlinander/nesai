@@ -8,9 +8,9 @@
 
 #define DEBUG(...)
 
-const float LR = 0.001;//0.00000001;
+const float LR = 0.0001;//0.00000001;
 const int BATCH_SIZE = 1000;
-const int PPO_EPOCHS = 3;
+const int PPO_EPOCHS = 1;
 const bool DEBUG = nullptr != getenv("DEBUG");
 
 static std::ofstream debug_log;
