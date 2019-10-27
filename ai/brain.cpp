@@ -17,6 +17,7 @@
 
 static uint8_t gp_bits = 0;
 
+static torch::NoGradGuard guard;
 static Model model{0.001};
 
 static bool enabled = false;

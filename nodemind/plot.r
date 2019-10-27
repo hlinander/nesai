@@ -4,19 +4,18 @@ library(gridExtra)
 library(reshape2)
 library(ggridges)
 
-
-plot_parameters = function(data, layer) {
+plot_parameters = function(data, type, layer, color) {
 	nplots <- min(c(length(data), 15))
 	indices <- round(seq(1, length(data), length.out=nplots))
 	sdata <- data[indices]
-	sdata <- lapply(sdata, function(e) { e$parameters })
+	sdata <- lapply(sdata, function(e) { e[[type]] })
 	sdata <- lapply(sdata, function(e) { e[[layer]]$values })
 	sdata <- lapply(sdata, unlist)
 	df <- data.frame(do.call(cbind, sdata))
 	colnames(df) <- as.character(indices)
 	df$ids = seq_len(nrow(df))
 	df <- melt(df, id.vars="ids", variable.name = 'series')
-	g <- ggplot(df, aes(x=value, y=series)) + geom_density_ridges() + ggtitle(layer)
+	g <- ggplot(df, aes(x=value, y=series)) + geom_density_ridges(fill=color) + ggtitle(paste(type, layer))
 	return(g)
 }
 
@@ -57,16 +56,27 @@ plot_rewards = function(data) {
 
 plot_all = function() {
 	data <- fromJSON(file="metrics.json")
-	w1 <- plot_parameters(data, 'fc1.weight')
-	w2 <- plot_parameters(data, 'fc2.weight')
-	w3 <- plot_parameters(data, 'fc3.weight')
-	b1 <- plot_parameters(data, 'fc1.bias')
-	b2 <- plot_parameters(data, 'fc2.bias')
-	b3 <- plot_parameters(data, 'fc3.bias')
+	w1 <- plot_parameters(data, 'parameters', 'fc1.weight', 'gray')
+	w2 <- plot_parameters(data, 'parameters', 'fc2.weight', 'gray')
+	w3 <- plot_parameters(data, 'parameters', 'fc3.weight', 'gray')
+	b1 <- plot_parameters(data, 'parameters', 'fc1.bias', 'gray')
+	b2 <- plot_parameters(data, 'parameters', 'fc2.bias', 'gray')
+	b3 <- plot_parameters(data, 'parameters', 'fc3.bias', 'gray')
+
+	dw1 <- plot_parameters(data, 'dparameters', 'fc1.weight', 'lightgreen')
+	dw2 <- plot_parameters(data, 'dparameters', 'fc2.weight', 'lightgreen')
+	dw3 <- plot_parameters(data, 'dparameters', 'fc3.weight', 'lightgreen')
+	db1 <- plot_parameters(data, 'dparameters', 'fc1.bias', 'lightgreen')
+	db2 <- plot_parameters(data, 'dparameters', 'fc2.bias', 'lightgreen')
+	db3 <- plot_parameters(data, 'dparameters', 'fc3.bias', 'lightgreen')
+
 	mr <- plot_avg_rewards(data)
 	rewards <- plot_rewards(data)
-	plot <- grid.arrange(w1,w2,w3, b1,b2,b3,mr,rewards, nrow=2)
-	ggsave("stats.png", plot=plot, device="png", width=30, height=10)
+	lay <- rbind(c(1,2,3, 4, 5, 6),
+				 c(7,8,9,10,11,12),
+				 c(13, 13, 14, 14, 14, 14))
+	plot <- grid.arrange(w1,w2,w3, b1,b2,b3,dw1,dw2,dw3, db1,db2,db3,mr,rewards, nrow=3, layout_matrix=lay)
+	ggsave("stats.png", plot=plot, device="png", width=30, height=20)
 }
 
 plot_all()

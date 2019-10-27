@@ -10,7 +10,7 @@
 
 const float LR = 0.0001;//0.00000001;
 const int BATCH_SIZE = 1000;
-const int PPO_EPOCHS = 1;
+const int PPO_EPOCHS = 5;
 const bool DEBUG = nullptr != getenv("DEBUG");
 
 static std::ofstream debug_log;
@@ -257,15 +257,21 @@ int main(int argc, const char *argv[])
             }
         }
         auto np = m.net->named_parameters();
+        auto oldp = experiences[0].net->named_parameters();
         json["parameter_stats"] = nlohmann::json({});
         json["parameters"] = nlohmann::json({});
+        json["dparameters"] = nlohmann::json({});
         json["rewards"] = calculate_rewards(experiences[0]).rewards;
         for(auto &ref : np.pairs()) {
             std::cout << "mean: " << ref.second.mean().item<float>() << " std: " << ref.second.std().item<float>() << std::endl;
             auto cp = ref.second.to(torch::kCPU);
+            auto dcp = (ref.second - oldp[ref.first]).to(torch::kCPU);
+
             int64_t nel = std::min(cp.numel(), static_cast<int64_t>(1000));
             std::vector<float> p(cp.data<float>(), cp.data<float>() + nel);
+            std::vector<float> dp(dcp.data<float>(), dcp.data<float>() + nel);
             json["parameters"][ref.first]["values"] = p;
+            json["dparameters"][ref.first]["values"] = dp;
             json["parameter_stats"][ref.first]["mean"] = ref.second.mean().item<float>();
             json["parameter_stats"][ref.first]["stddev"] = ref.second.std().item<float>();
         }

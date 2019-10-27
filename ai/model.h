@@ -64,8 +64,8 @@ struct Net : torch::nn::Module {
 	}
 
 	torch::Tensor forward(torch::Tensor x) {
-		x = torch::tanh(fc1->forward(x));
-		x = torch::tanh(fc2->forward(x));
+		x = torch::leaky_relu(fc1->forward(x));
+		x = torch::leaky_relu(fc2->forward(x));
 		x = fc3->forward(x);
 		return x;
 	}
