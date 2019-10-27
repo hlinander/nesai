@@ -6,7 +6,7 @@ local last_input = 0
 
 function brain_override_input(frame)
 	if frame < 100 then
-		last_input = bit.bxor(last_input, 8)
+		last_input = last_input~8
 		return last_input
 	end
 	return -1

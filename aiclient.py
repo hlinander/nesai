@@ -77,12 +77,12 @@ def run_job(j):
 	model_path = f"/tmp/{name}.model"
 	env['MODEL'] = model_path
 	env['BE'] = f'/tmp/{name}.lua'
-	p = subprocess.Popen(['luajit', 'quicknes.lua', f'/tmp/{name}.nes'], cwd='bin/', stdout=None, env=env)
+	p = subprocess.Popen(['./hqn_quicknes', f'/tmp/{name}.nes'], cwd='bin/', stdout=None, env=env)
 	p.wait()
 	experience = "%s.experience" % (model_path)
 	if 0 == p.returncode:
 		if not os.path.exists(experience):
-			raise Exception('luajit terminated strangely or so...?')
+			raise Exception('hqn_quicknes terminated strangely or so...?')
 		upload('/result/%s' % (j['job_id']), open(experience, 'rb').read())
 	else:
 		print('Sad client %d' % (p.returncode))

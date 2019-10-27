@@ -13,7 +13,7 @@
 // #include <lauxlib.h>
 // }
 
-#include <lua.hpp>
+#include <lua5.3/lua.hpp>
 
 static uint8_t gp_bits = 0;
 

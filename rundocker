@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-nvidia-docker run -u $(id -u):$(id -g) --network=host -e XAUTHORITY -v /tmp/.X11-unix:/tmp/.X11-unix --volume="$HOME/.Xauthority:/root/.Xauthority:rw" --env="DISPLAY" -e NVIDIA_DRIVER_CAPABILITIES=all --rm -it -v $(pwd):/nesai -w /nesai/ --cap-add=SYS_PTRACE --security-opt seccomp=unconfined hlinander/nesai:33 /bin/bash
+nvidia-docker run -u $(id -u):$(id -g) --network=host -e XAUTHORITY -v /tmp/.X11-unix:/tmp/.X11-unix --volume="$HOME/.Xauthority:/root/.Xauthority:rw" --env="DISPLAY" -e NVIDIA_DRIVER_CAPABILITIES=all --rm -it -v $(pwd):/nesai -w /nesai/ --cap-add=SYS_PTRACE --security-opt seccomp=unconfined hlinander/nesai:34 /bin/bash

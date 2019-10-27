@@ -26,7 +26,7 @@ else
 
 TARGET = ../hqn_quicknes
 
-LINKFLAGS = -L ../quicknes/ -lSDL2_ttf -llua -lcuda -ltorch -lc10 -lquicknes -ldl `pkg-config --libs sdl2`
+LINKFLAGS = -L ../quicknes/ -lSDL2_ttf -llua5.3 -lcuda -ltorch -lc10 -lquicknes -ldl `pkg-config --libs sdl2`
 
 CXXFLAGS = -std=c++11 -I ../quicknes -O3 -Wno-multichar -fpermissive -fPIC \
 		   `pkg-config --cflags sdl2`
