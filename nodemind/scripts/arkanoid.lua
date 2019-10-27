@@ -1,11 +1,15 @@
 function brain_validate_frame(frame)
-	if read_cpu(0x000D) == 0 and frame > 500 then
+    local lives = read_cpu(0x0D)
+	if lives == 0 and frame > 500 then
 		return false
+	elseif 500 == frame then
+		old_lives = lives
     end
 	return frame < 10000
 end
 
 local last_input = 0
+local old_lives = nil
 
 function brain_override_input(frame)
 	if frame < 100 then
@@ -23,6 +27,13 @@ function brain_get_reward(frame)
 		-- No score in demo mode
 		--
 		return 0
+	end
+	if nil ~= old_lives then
+		local lives = read_cpu(0x000D)
+		if old_lives ~= lives then
+			old_lives = lives
+			return -10
+		end
 	end
 	local d6 = read_cpu(0x370)
 	local d5 = read_cpu(0x371)
