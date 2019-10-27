@@ -6,10 +6,14 @@ library(ggridges)
 
 
 plot_parameters = function(data, layer) {
-	data <- lapply(data, function(e) { e$parameters })
-	data <- lapply(data, function(e) { e[[layer]]$values })
-	data <- lapply(data, unlist)
-	df <- data.frame(do.call(cbind, data))
+	nplots <- min(c(length(data), 15))
+	indices <- round(seq(1, length(data), length.out=nplots))
+	sdata <- data[indices]
+	sdata <- lapply(sdata, function(e) { e$parameters })
+	sdata <- lapply(sdata, function(e) { e[[layer]]$values })
+	sdata <- lapply(sdata, unlist)
+	df <- data.frame(do.call(cbind, sdata))
+	colnames(df) <- as.character(indices)
 	df$ids = seq_len(nrow(df))
 	df <- melt(df, id.vars="ids", variable.name = 'series')
 	g <- ggplot(df, aes(x=value, y=series)) + geom_density_ridges() + ggtitle(layer)
@@ -36,13 +40,15 @@ plot_avg_rewards = function(data) {
 }
 
 plot_rewards = function(data) {
-	rewards <- lapply(data, function(e) { e$reward })
+	nplots <- min(c(length(data), 15))
+	indices <- round(seq(1, length(data), length.out=nplots))
+	sdata <- data[indices]
+	rewards <- lapply(sdata, function(e) { e$reward })
 	crewards <- lapply(rewards, unlist)
 	df <- data.frame(do.call(cbind, crewards))
-	mini_df <- df[,seq(1, ncol(df), 1)]
-	mini_df$id <- seq_len(nrow(mini_df))
-	print(colnames(mini_df))
-	melted <- melt(mini_df, id.vars="id", variable.name="series")
+	colnames(df) <- as.character(indices)
+	df$id <- seq_len(nrow(df))
+	melted <- melt(df, id.vars="id", variable.name="series")
 	# res <- ggplot(melted, aes(x=id, y=rep(0, nrow(melted)), height=value, group=series)) + geom_ridgeline()
 	res <- ggplot(melted, aes(x=id, y=series, height=value)) + geom_density_ridges(stat="identity", scale=1)
 	return(res)
