@@ -58,8 +58,11 @@ plot_all = function() {
 	b3 <- plot_parameters(data, 'fc3.bias')
 	mr <- plot_avg_rewards(data)
 	rewards <- plot_rewards(data)
-	grid.arrange(w1,w2,w3, b1,b2,b3,mr,rewards, nrow=2)
+	plot <- grid.arrange(w1,w2,w3, b1,b2,b3,mr,rewards, nrow=2)
+	ggsave("stats.png", plot=plot, device="png", width=30, height=10)
 }
+
+plot_all()
 
 #print(plot_parameters(json_data))
 #print(plot_rewards(json_data))

@@ -38,6 +38,14 @@ RUN apt install -y libsdl2-ttf-dev
 RUN apt install -y curl
 RUN curl -sL https://deb.nodesource.com/setup_12.x | bash -
 RUN apt install -y nodejs
+RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E298A3A825C0D65DFD57CBB651716619E084DAB9
+RUN echo 'deb https://cloud.r-project.org/bin/linux/ubuntu bionic-cran35/' > /etc/apt/sources.list.d/rstuff.list
+RUN apt update && apt install -y r-base
+RUN echo "install.packages('rjson')" | R --no-save
+RUN echo "install.packages('ggplot2')" | R --no-save
+RUN echo "install.packages('gridExtra')" | R --no-save
+RUN echo "install.packages('reshape2')" | R --no-save
+RUN echo "install.packages('ggridges')" | R --no-save
 ENV CPATH=/pytorch/torch/include/:/pytorch/torch/include/torch/csrc/api/include/
 ENV LIBRARY_PATH=/pytorch/torch/lib:/usr/lib/x86_64-linux-gnu/
 ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/intel/mkl/lib/intel64_lin/:/pytorch/torch/lib

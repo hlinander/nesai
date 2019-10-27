@@ -62,6 +62,18 @@ async function saveAI(ai) {
   await fs.writeFile('ai/' + ai.name + '.json', JSON.stringify(ai))
 }
 
+app.get('/stats', async (req, res) => {
+  try {
+    await exec("R --no-save --no-restore < plot.r")
+    const data = await fs.readFile("stats.png")
+    return res.end(data, 'binary')
+  }
+  catch(err) {
+    console.dir(err);
+    return res.send(err)
+  }
+});
+
 app.post('/newai', async (req, res) => {
   const {name, rollouts, job_timeout, rom, script} = req.body
   if(!name || !rollouts || !job_timeout || !rom || !script) return res.sendStatus(500)
@@ -147,6 +159,7 @@ async function advanceGeneration(ai) {
     + modelfile)
 
   console.log(stdout);
+
 
   fs.unlink(getExperienceFile(ai.name))
   console.log("going to delete files")
