@@ -131,8 +131,10 @@ float update_model(Model &m, Model &experience, stat_map &stats, const float avg
         // auto thresh = (ACTION_THRESHOLD * torch::ones({(long)actual_bs, ACTION_SIZE})).to(m.net->device);
 
 		auto logp = m.forward_batch_nice(experience.get_batch(frame, frame + actual_bs));
-		auto p = torch::sigmoid(logp);
-		auto old_p = torch::sigmoid(experience.forward_batch_nice(frame, frame + actual_bs));
+		// auto p = torch::sigmoid(logp);
+		// auto old_p = torch::sigmoid(experience.forward_batch_nice(frame, frame + actual_bs));
+		auto p = logp;
+		auto old_p = experience.forward_batch_nice(frame, frame + actual_bs);
 
         std::array<float, BATCH_SIZE * ACTION_SIZE> rewards_batch{};
         std::fill(std::begin(rewards_batch), std::end(rewards_batch), 0.0f);
@@ -148,7 +150,7 @@ float update_model(Model &m, Model &experience, stat_map &stats, const float avg
         // debug_log << trewards << std::endl;
         auto trewards_gpu = trewards.to(m.net->device);
         //.to(m.net->device);
-		auto masked_r = (p / old_p);
+		auto masked_r = torch::exp(p - old_p);
 		auto lloss = torch::min(masked_r * trewards_gpu, torch::clamp(masked_r, 1.0 - 0.2, 1.0 + 0.2) * trewards_gpu).sum();
 		(-lloss).backward();
 	}
