@@ -85,7 +85,7 @@ def results_thread():
 			continue
 		for it in r:
 			try:
-				if not os.path.exists(experience):
+				if not os.path.exists(it['result_file']):
 					raise Exception('#### ASSOCIATED RESULT FILE IS MISSING FIX (job_id: %d).' % (job_id))
 				upload('/result/%s' % (it['job_id']), open(it['result_file'], 'rb').read())
 				os.unlink(it['result_file'])

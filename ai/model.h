@@ -173,11 +173,9 @@ struct Model {
         std::array<uint8_t, ACTION_SIZE> actions;
         for(size_t i = 0; i < ACTION_SIZE; i++){
 			// std::cout << out_a[0][i] << ", ";
-            actions[i] = out_a[0][i] > ACTION_THRESHOLD ? 1 : 0;
 			float r = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-			if(r < EPS_EXPLORE) {
-				actions[i] ^= 1;
-			}
+            // actions[i] = out_a[0][i] > ACTION_THRESHOLD ? 1 : 0;
+            actions[i] = (r < out_a[0][i]) ? 1 : 0;
         }
 		// std::cout << std::endl;
 		return actions;

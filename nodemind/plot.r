@@ -54,8 +54,35 @@ plot_rewards = function(data) {
 	return(res)
 }
 
+plot_rollout_lengths = function(data) {
+	# nplots <- min(c(length(data), 15))
+	# indices <- round(seq(1, length(data), length.out=nplots))
+	# sdata <- data[indices]
+	rewards <- lapply(data, function(e) { e$reward })
+	crewards <- lapply(rewards, unlist)
+	lrewards <- unlist(lapply(crewards, length))
+	df <- data.frame(lengths=lrewards)
+	df$id <- seq_len(nrow(df))
+	# res <- ggplot(melted, aes(x=id, y=rep(0, nrow(melted)), height=value, group=series)) + geom_ridgeline()
+	# res <- ggplot(melted, aes(x=id, y=series, height=value)) + geom_density_ridges(stat="identity", scale=1)
+	res <- ggplot(df, aes(x=lengths)) + geom_histogram(binwidth=20)
+	return(res)
+}
+
+plot_actions = function(data) {
+	last <- tail(data, n=1)[[1]]
+	actions <- last$actions
+	df <- data.frame(do.call(rbind, actions))
+	colnames(df) <- c("up", "down", "left", "right", "a", "b", "start", "select")
+	df$frame <- seq_len(nrow(df))
+	print(head(df, n=10))
+	melted <- melt(df, id.vars="frame", variable.name="button")
+	res <- ggplot(melted, aes(x=frame, y=value)) + geom_col() + facet_grid(button~.)
+	return(res + theme_minimal())
+}
+
 plot_all = function() {
-	data <- fromJSON(file="metrics.json")
+	data <- fromJSON(file="metrics_read.json")
 	w1 <- plot_parameters(data, 'parameters', 'fc1.weight', 'gray')
 	w2 <- plot_parameters(data, 'parameters', 'fc2.weight', 'gray')
 	w3 <- plot_parameters(data, 'parameters', 'fc3.weight', 'gray')
@@ -72,10 +99,14 @@ plot_all = function() {
 
 	mr <- plot_avg_rewards(data)
 	rewards <- plot_rewards(data)
+	lengths <- plot_rollout_lengths(data)
+	actions <- plot_actions(data)
 	lay <- rbind(c(1,2,3, 4, 5, 6),
 				 c(7,8,9,10,11,12),
-				 c(13, 13, 14, 14, 14, 14))
-	plot <- grid.arrange(w1,w2,w3, b1,b2,b3,dw1,dw2,dw3, db1,db2,db3,mr,rewards, nrow=3, layout_matrix=lay)
+				 c(13, 13, 14, 14, 14, 15),
+				 c(16, 16, 16, 16, 16, 16))
+	plot <- grid.arrange(w1,w2,w3, b1,b2,b3,dw1,dw2,dw3, db1,db2,db3,mr,rewards, lengths, actions, nrow=3, layout_matrix=lay)
+	# plot <- grid.arrange(w1,w2,w3, b1,b2,b3,dw1,dw2,dw3, db1,db2,db3,mr,rewards, lengths, nrow=3, layout_matrix=lay)
 	ggsave("stats.png", plot=plot, device="png", width=30, height=20)
 }
 

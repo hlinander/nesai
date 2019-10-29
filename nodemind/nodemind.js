@@ -64,6 +64,7 @@ async function saveAI(ai) {
 
 app.get('/stats', async (req, res) => {
   try {
+    await fs.copyFile("metrics.json", "metrics_read.json")
     await exec("R --no-save --no-restore < plot.r")
     const data = await fs.readFile("stats.png")
     return res.end(data, 'binary')

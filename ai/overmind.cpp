@@ -264,6 +264,7 @@ int main(int argc, const char *argv[])
         json["parameters"] = nlohmann::json({});
         json["dparameters"] = nlohmann::json({});
         json["rewards"] = calculate_rewards(experiences[0]).rewards;
+        json["actions"] = experiences[0].actions;
         for(auto &ref : np.pairs()) {
             std::cout << "mean: " << ref.second.mean().item<float>() << " std: " << ref.second.std().item<float>() << std::endl;
             auto cp = ref.second.to(torch::kCPU);

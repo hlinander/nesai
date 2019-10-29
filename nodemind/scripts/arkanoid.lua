@@ -1,9 +1,10 @@
 local last_input = 0
 local old_lives = nil
+local death_hack = false
 
 function brain_validate_frame(frame)
     local lives = read_cpu(0x0D)
-	if lives == 0 and frame > 500 then
+	if death_hack then
 		return false
 	elseif 500 == frame then
 		old_lives = lives
@@ -32,7 +33,10 @@ function brain_get_reward(frame)
 		local lives = read_cpu(0x000D)
 		if old_lives ~= lives then
 			old_lives = lives
-			print("NEGATIVE REWARD")
+			if 0 == lives then
+				death_hack = true
+			end
+				 	 
 			return -1000
 		end
 	end
