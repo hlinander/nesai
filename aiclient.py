@@ -1,3 +1,5 @@
+from threading import Thread, Lock
+
 import requests
 import os
 import sys
@@ -5,11 +7,13 @@ import time
 import json
 import subprocess
 
+mutex = Lock()
+
 generation = None
 rom = None
 script = None
-
 generation = None
+result_queue = []
 
 server = os.getenv('aiserver') or 'http://localhost:3000'
 ai = sys.argv[1]
@@ -68,7 +72,40 @@ def download_script(s):
 	open('/tmp/%s.lua' % (name), 'wb').write(download('/script/%s' % (s)))
 	script = s
 
+def results_thread():
+	global result_queue
+	while True:
+		r = []
+		mutex.acquire()
+		r = result_queue
+		result_queue = []
+		mutex.release()
+		if 0 == len(r):
+			time.sleep(0.5)
+			continue
+		for it in r:
+			try:
+				if not os.path.exists(experience):
+					raise Exception('#### ASSOCIATED RESULT FILE IS MISSING FIX (job_id: %d).' % (job_id))
+				upload('/result/%s' % (it['job_id']), open(it['result_file'], 'rb').read())
+				os.unlink(it['result_file'])
+			except e as Exception:
+				print('RESULT_THREAD: %s' % (e))
+				continue
+			print('Successfully uploaded job: %s' % (it['job_id']))
+
+def result_queue_happy():
+	mutex.acquire()
+	n = len(result_queue)
+	mutex.release()
+	return (n < 32)
+
+experience_id = 0
+
 def run_job(j):
+	global result_queue
+	global experience_id
+
 	download_model(j['ai'])
 	download_rom(j['rom'])
 	download_script(j['script'])
@@ -79,24 +116,29 @@ def run_job(j):
 	env['BE'] = f'/tmp/{name}.lua'
 	p = subprocess.Popen(['./hqn_quicknes', f'/tmp/{name}.nes'], cwd='bin/', stdout=None, env=env)
 	p.wait()
-	experience = "%s.experience" % (model_path)
+	experience_id += 1 # hack fuck
+	old_experience = "%s.experience" % (model_path)
+	new_experience = "%s.%d" % (old_experience, experience_id)
+	os.rename(old_experience, new_experience)
 	if 0 == p.returncode:
-		if not os.path.exists(experience):
-			raise Exception('hqn_quicknes terminated strangely or so...?')
-		upload('/result/%s' % (j['job_id']), open(experience, 'rb').read())
+		mutex.acquire()
+		result_queue.append({ 'job_id': j['job_id'], 'result_file': new_experience })
+		mutex.release()
 	else:
 		print('Sad client %d' % (p.returncode))
 
-	try:
-		os.unlink(experience)
-	except:
-		pass
 
 print('Using AI server: %s' % (server))
 print('Will work on "%s" as "%s".' % (ai, name))
 
+t = Thread(target=results_thread)
+t.start()
+
 while True:
 	try:
+		while not result_queue_happy():
+			print('Too many pending results in queue (upload too slow?)')
+			time.sleep(1.0)
 		r = get('/job/%s' % (ai))
 		if 200 == r.status_code:
 			run_job(json.loads(r.text))
@@ -110,4 +152,5 @@ while True:
 		print('EXCEPTION: %s' % (e))
 		print('Sleeping one second before trying to resume...')
 		time.sleep(1.0)
+
 
