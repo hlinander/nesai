@@ -7,6 +7,8 @@
 void brain_init();
 bool brain_enabled();
 bool brain_headless();
+void brain_begin_rollout();
+uint32_t brain_num_rollouts();
 uint8_t brain_controller_bits();
 bool brain_on_frame();
 void brain_bind_cpu_mem(const uint8_t *ram);

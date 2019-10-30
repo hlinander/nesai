@@ -6,20 +6,18 @@
 #include <iostream>
 #include <dlfcn.h>
 
-// extern "C"
-// {
-// #include <lua.h>
-// #include <lualib.h>
-// #include <lauxlib.h>
-// }
-
-#include <lua5.3/lua.hpp>
+#ifdef LUA_WITH_VERSION
+	#include <lua5.3/lua.hpp>
+#else
+	#include <lua.hpp>
+#endif
 
 static uint8_t gp_bits = 0;
 
 static torch::NoGradGuard guard;
 static Model model{0.001};
 
+static uint32_t rollouts = 1;
 static bool enabled = false;
 static bool headless = false;
 static bool show_fps = false;
@@ -101,6 +99,13 @@ void brain_init()
 			std::cout << "WARNING!! Running without name" << std::endl;
 			name = "noname";
 		}
+
+		const char *ro = getenv("ROLLOUTS");
+		if(nullptr != ro)
+		{
+			rollouts = static_cast<uint32_t>(atoi(ro));
+		}
+
 		enabled = true;
 		if(nullptr == (L = luaL_newstate()))
 		{
@@ -128,6 +133,24 @@ void brain_init()
 	show_fps = bool_env("FPS");
 }
 
+void brain_begin_rollout()
+{
+	lua_getglobal(L, "brain_begin_rollout");
+	if(0 != lua_pcall(L, 0, 0, 0))
+	{
+		std::cout << "LUA: Error running 'brain_begin_rollout': " << lua_tostring(L, -1) << std::endl;
+		exit(1);
+	}
+	fps = 0;
+	next_fps = 0;
+	frame = 0;
+}
+
+uint32_t brain_num_rollouts()
+{
+	return rollouts;	
+}
+
 bool brain_enabled()
 {
 	return enabled;
@@ -152,7 +175,7 @@ static float get_reward(uint32_t frame)
 	}
 	if(!lua_isnumber(L, -1))
 	{
-		std::cout << "LUA: 'brain_validate_frame' not returning an nuymber" << std::endl;
+		std::cout << "LUA: 'brain_validate_frame' not returning an number" << std::endl;
 		exit(1);	
 	}
 	
@@ -212,6 +235,7 @@ uint8_t brain_controller_bits()
 void brain_bind_cpu_mem(const uint8_t *ram)
 {
 	cpu_ram = ram;
+	brain_begin_rollout();
 }
 
 bool brain_on_frame()
@@ -271,7 +295,7 @@ bool brain_on_frame()
 	{
 		std::cout << "FPS: " << fps << std::endl;
 		fps = 0;
-		next_fps = now + 1000;
+		next_fps = now + 100;
 	}
 	++frame;
 	return true;

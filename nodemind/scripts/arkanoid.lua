@@ -1,6 +1,14 @@
 local last_input = 0
 local old_lives = nil
 local death_hack = false
+local old_score = 0
+
+function brain_begin_rollout()
+	last_input = 0
+	old_lives = nil
+	death_hack = false
+	old_score = 0
+end
 
 function brain_validate_frame(frame)
     local lives = read_cpu(0x0D)
@@ -20,8 +28,6 @@ function brain_override_input(frame)
 	return -1
 end
 
-local old_score = 0
-
 function brain_get_reward(frame)
 	if frame < 10 then
 		--
@@ -36,7 +42,6 @@ function brain_get_reward(frame)
 			if 0 == lives then
 				death_hack = true
 			end
-				 	 
 			return -1000
 		end
 	end

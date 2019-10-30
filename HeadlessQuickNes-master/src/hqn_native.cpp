@@ -77,6 +77,11 @@ static void nemu_frameadvance()
 	hqn_state.advanceFrame();
 }
 
+static void nemu_hard_reset()
+{
+	hqn_state.reset(true);
+}
+
 static bool ngui_isenabled()
 {
     GET_GUI();
@@ -179,8 +184,30 @@ int main(int argc, const char *argv[])
 
 	if(brain_enabled())
 	{
-		brain_bind_cpu_mem(hqn_state.emu()->low_mem());
-		return run_brain_mode();
+		uint32_t rollout = 0;
+
+		for(;;)
+		{
+			brain_bind_cpu_mem(hqn_state.emu()->low_mem());
+
+			int rc = run_brain_mode();
+
+			if(0 != rc)
+			{
+				std::cout << "Brain failed to run with: " << rc << std::endl;
+				return rc;
+			}
+
+			if(++rollout == brain_num_rollouts())
+			{
+				std::cout << "Ran " << rollout << " rollouts successfully! :)" << std::endl;
+				break;
+			}
+
+			nemu_hard_reset();
+		}
+
+		return 0;
 	}
 
 	return run_human_mode();

@@ -90,6 +90,8 @@ public:
 
 	error_t setSampleRate(int rate);
 
+    void reset(bool full = false);
+
     /**
      * Set a limit to the framerate.
      * 0 means no limit.

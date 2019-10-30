@@ -61,6 +61,11 @@ HQNState::~HQNState()
     delete m_emu;
 }
 
+void HQNState::reset(bool full)
+{
+    m_emu->reset(full, full);
+}
+
 error_t HQNState::setSampleRate(int rate)
 {
 	const char *ret = m_emu->set_sample_rate(rate);

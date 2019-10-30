@@ -9,7 +9,7 @@
 #define DEBUG(...)
 
 const float LR = 0.0001;//0.00000001;
-const int BATCH_SIZE = 1000;
+static const int BATCH_SIZE = 10000;
 const int PPO_EPOCHS = 5;
 const bool DEBUG = nullptr != getenv("DEBUG");
 
@@ -195,6 +195,14 @@ int main(int argc, const char *argv[])
             return 1;
         }
     }
+    else if(0 == strcmp(argv[1], "update_stdin"))
+    {
+        std::string line;
+        while(!std::getline(std::cin, line))
+        {
+
+        }
+    }
     else if(0 == strcmp(argv[1], "update"))
     {
         if(argc < 5)
@@ -203,6 +211,7 @@ int main(int argc, const char *argv[])
             return 1;
         }
 
+        Benchmark full_ud("full_update");
         Model m(LR);
         if(!m.load_file(argv[2]))
         {
@@ -258,51 +267,61 @@ int main(int argc, const char *argv[])
 
             }
         }
-        auto np = m.net->named_parameters();
-        auto oldp = experiences[0].net->named_parameters();
-        json["parameter_stats"] = nlohmann::json({});
-        json["parameters"] = nlohmann::json({});
-        json["dparameters"] = nlohmann::json({});
-        json["rewards"] = calculate_rewards(experiences[0]).rewards;
-        json["actions"] = experiences[0].actions;
-        for(auto &ref : np.pairs()) {
-            std::cout << "mean: " << ref.second.mean().item<float>() << " std: " << ref.second.std().item<float>() << std::endl;
-            auto cp = ref.second.to(torch::kCPU);
-            auto dcp = (ref.second - oldp[ref.first]).to(torch::kCPU);
 
-            int64_t nel = std::min(cp.numel(), static_cast<int64_t>(1000));
-            std::vector<float> p(cp.data<float>(), cp.data<float>() + nel);
-            std::vector<float> dp(dcp.data<float>(), dcp.data<float>() + nel);
-            json["parameters"][ref.first]["values"] = p;
-            json["dparameters"][ref.first]["values"] = dp;
-            json["parameter_stats"][ref.first]["mean"] = ref.second.mean().item<float>();
-            json["parameter_stats"][ref.first]["stddev"] = ref.second.std().item<float>();
-        }
-        json["mean_reward"] = reward / static_cast<float>(n_rewards);
-        if(DEBUG) 
         {
+            Benchmark hampe_dbg("hampe_dbg");
             auto np = m.net->named_parameters();
+            auto oldp = experiences[0].net->named_parameters();
+            json["parameter_stats"] = nlohmann::json({});
+            json["parameters"] = nlohmann::json({});
+            json["dparameters"] = nlohmann::json({});
+            json["rewards"] = calculate_rewards(experiences[0]).rewards;
+            json["actions"] = experiences[0].actions;
             for(auto &ref : np.pairs()) {
-                debug_log << "Layer: " << ref.first << std::endl;
-                debug_log << (ref.second - experiences[0].net->named_parameters()[ref.first]) << std::endl;
+                std::cout << "mean: " << ref.second.mean().item<float>() << " std: " << ref.second.std().item<float>() << std::endl;
+                auto cp = ref.second.to(torch::kCPU);
+                auto dcp = (ref.second - oldp[ref.first]).to(torch::kCPU);
+
+                int64_t nel = std::min(cp.numel(), static_cast<int64_t>(1000));
+                std::vector<float> p(cp.data<float>(), cp.data<float>() + nel);
+                std::vector<float> dp(dcp.data<float>(), dcp.data<float>() + nel);
+                json["parameters"][ref.first]["values"] = p;
+                json["dparameters"][ref.first]["values"] = dp;
+                json["parameter_stats"][ref.first]["mean"] = ref.second.mean().item<float>();
+                json["parameter_stats"][ref.first]["stddev"] = ref.second.std().item<float>();
             }
-            analyze_step(m, experiences[0]);
-            print_stats(sm, total_frames);
+            json["mean_reward"] = reward / static_cast<float>(n_rewards);
+            if(DEBUG) 
+            {
+                auto np = m.net->named_parameters();
+                for(auto &ref : np.pairs()) {
+                    debug_log << "Layer: " << ref.first << std::endl;
+                    debug_log << (ref.second - experiences[0].net->named_parameters()[ref.first]) << std::endl;
+                }
+                analyze_step(m, experiences[0]);
+                print_stats(sm, total_frames);
+            }
         }
         
-        m.save_file(argv[4]);
-        std::ifstream old("metrics.json");
-        nlohmann::json old_json;
-        try {
-            old >> old_json;
-        }
-        catch(nlohmann::json::exception& e)
         {
-            old_json = nlohmann::json::array();
+            Benchmark save("savefile");
+            m.save_file(argv[4]);
         }
-        old_json.push_back(json);
-        std::ofstream out("metrics.json");
-        out << std::setw(4) << old_json << std::endl;
+        {
+            Benchmark hampe2("hampe2");
+            std::ifstream old("metrics.json");
+            nlohmann::json old_json;
+            try {
+                old >> old_json;
+            }
+            catch(nlohmann::json::exception& e)
+            {
+                old_json = nlohmann::json::array();
+            }
+            old_json.push_back(json);
+            std::ofstream out("metrics.json");
+            out << std::setw(4) << old_json << std::endl;
+        }
     }
     else
     {

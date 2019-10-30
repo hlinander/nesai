@@ -3,6 +3,12 @@ INCLUDES += -Icereal-1.2.2/include
 CPPFLAGS  = -std=c++17 -O3 -Wall -fPIC -g -ggdb
 LIBS = -llua5.3 -lcuda -ltorch -lc10
 
+ifneq ($(findstring -ARCH,$(shell uname -a)),-ARCH)
+	CPPFLAGS += -DLUA_WITH_VERSION
+else
+	CPPFLAGS += -Wno-deprecated-declarations
+endif
+
 PHONY: clean
 PHONY: all
 

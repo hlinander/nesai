@@ -6,6 +6,7 @@ import sys
 import time
 import json
 import subprocess
+import traceback
 
 mutex = Lock()
 
@@ -14,6 +15,7 @@ rom = None
 script = None
 generation = None
 result_queue = []
+result_size = 0
 
 server = os.getenv('aiserver') or 'http://localhost:3000'
 ai = sys.argv[1]
@@ -72,38 +74,48 @@ def download_script(s):
 	open('/tmp/%s.lua' % (name), 'wb').write(download('/script/%s' % (s)))
 	script = s
 
+def get_result():
+	global result_queue
+	r = None
+	mutex.acquire()
+	if 0 != len(result_queue):
+		r = result_queue[0]
+		result_queue = result_queue[1:]
+	mutex.release()
+	return r
+
 def results_thread():
 	global result_queue
+	global result_size
 	while True:
-		r = []
-		mutex.acquire()
-		r = result_queue
-		result_queue = []
-		mutex.release()
-		if 0 == len(r):
+		r = get_result()
+		if None == r:
 			time.sleep(0.5)
 			continue
-		for it in r:
-			try:
-				if not os.path.exists(it['result_file']):
-					raise Exception('#### ASSOCIATED RESULT FILE IS MISSING FIX (job_id: %d).' % (job_id))
-				upload('/result/%s' % (it['job_id']), open(it['result_file'], 'rb').read())
-				os.unlink(it['result_file'])
-			except e as Exception:
-				print('RESULT_THREAD: %s' % (e))
-				continue
-			print('Successfully uploaded job: %s' % (it['job_id']))
+		try:
+			if not os.path.exists(r['result_file']):
+				raise Exception('#### ASSOCIATED RESULT FILE IS MISSING FIX (job_id: %d).' % (job_id))
+			upload('/result/%s' % (r['job_id']), open(r['result_file'], 'rb').read())
+			os.unlink(r['result_file'])
+			print('Successfully uploaded job: %s (%d bytes)' % (r['job_id'], r['size']))
+		except e as Exception:
+			print('### RESULT_THREAD EXCEPTION: %s' % (e))
+		mutex.acquire()
+		result_size -= r['size']
+		print('Backlog remaining: %f mb' % (result_size / (1024*1024)))
+		mutex.release()
 
-def result_queue_happy():
+def backlog_within_reason():
 	mutex.acquire()
-	n = len(result_queue)
+	n = result_size
 	mutex.release()
-	return (n < 32)
+	return (n < (500 * 1024 * 1024))
 
 experience_id = 0
 
 def run_job(j):
 	global result_queue
+	global result_size
 	global experience_id
 
 	download_model(j['ai'])
@@ -114,15 +126,26 @@ def run_job(j):
 	model_path = f"/tmp/{name}.model"
 	env['MODEL'] = model_path
 	env['BE'] = f'/tmp/{name}.lua'
+	env['ROLLOUTS'] = str(j['rollouts'])
 	p = subprocess.Popen(['./hqn_quicknes', f'/tmp/{name}.nes'], cwd='bin/', stdout=None, env=env)
 	p.wait()
-	experience_id += 1 # hack fuck
-	old_experience = "%s.experience" % (model_path)
-	new_experience = "%s.%d" % (old_experience, experience_id)
-	os.rename(old_experience, new_experience)
+	
 	if 0 == p.returncode:
+		experience_id += 1 # hack fuck
+		old_experience = "%s.experience" % (model_path)
+		new_experience = "%s.%d" % (old_experience, experience_id)
+
+		os.rename(old_experience, new_experience)
+		filesize = os.path.getsize(new_experience)
+
 		mutex.acquire()
-		result_queue.append({ 'job_id': j['job_id'], 'result_file': new_experience })
+		result_size += filesize
+		result_queue.append({
+			'job_id': j['job_id'],
+			'result_file': new_experience,
+			'size': filesize
+		})
+		print('queue: %d, size:%d' % (len(result_queue), filesize))
 		mutex.release()
 	else:
 		print('Sad client %d' % (p.returncode))
@@ -136,7 +159,7 @@ t.start()
 
 while True:
 	try:
-		while not result_queue_happy():
+		while not backlog_within_reason():
 			print('Too many pending results in queue (upload too slow?)')
 			time.sleep(1.0)
 		r = get('/job/%s' % (ai))
@@ -150,6 +173,7 @@ while True:
 			break
 	except Exception as e:
 		print('EXCEPTION: %s' % (e))
+		traceback.print_exc()
 		print('Sleeping one second before trying to resume...')
 		time.sleep(1.0)
 
