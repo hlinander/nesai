@@ -82,7 +82,7 @@ plot_actions = function(data) {
 }
 
 plot_all = function() {
-	data <- fromJSON(file="metrics_plot.json")
+	data <- fromJSON(file="metrics_read.json")
 	w1 <- plot_parameters(data, 'parameters', 'fc1.weight', 'gray')
 	w2 <- plot_parameters(data, 'parameters', 'fc2.weight', 'gray')
 	w3 <- plot_parameters(data, 'parameters', 'fc3.weight', 'gray')

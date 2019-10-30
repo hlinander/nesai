@@ -158,6 +158,10 @@ app.get('/job/:name', (req, res) => {
 
 async function advanceGeneration(ai) {
   const modelfile = getModelFile(ai.name, ai.generation + 1)
+  console.log('../bin/overmind update '
+    + getModelFile(ai.name, ai.generation) + ' '
+    + getExperienceFile(ai.name) + ' '
+    + modelfile)
   const { stdout, stderr } = await exec('../bin/overmind update '
     + getModelFile(ai.name, ai.generation) + ' '
     + getExperienceFile(ai.name) + ' '

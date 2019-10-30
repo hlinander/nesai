@@ -232,7 +232,7 @@ int main(int argc, const char *argv[])
             std::cout << "update <model> <experiences> <model_out>" << std::endl;
             return 1;
         }
-
+        std::cout << "Update!" << std::endl;
         Benchmark full_ud("full_update");
         Model m(LR);
         if(!m.load_file(argv[2]))
@@ -246,8 +246,10 @@ int main(int argc, const char *argv[])
         std::string str;
         {
             Benchmark b{"exp_load"};
+            std::cout << "Reading lines..." << std::endl;
             while(std::getline(in, str))
             {
+                std::cout << str << std::endl;
                 try {
                     experiences.emplace_back(Model(LR));
                     if(!experiences.back().load_file(str))
@@ -265,6 +267,7 @@ int main(int argc, const char *argv[])
         int total_frames = 0;
         float reward = 0;
         int n_rewards = 0;
+        std::cout << "Starting updates" << std::endl;
 		for(int epoch = 0; epoch < PPO_EPOCHS; epoch++) {
 			Benchmark bepoch{"epoch"};
 			m.optimizer.zero_grad();
@@ -314,16 +317,16 @@ int main(int argc, const char *argv[])
                 json["parameter_stats"][ref.first]["stddev"] = ref.second.std().item<float>();
             }
             json["mean_reward"] = reward / static_cast<float>(n_rewards);
-            if(DEBUG) 
-            {
-                auto np = m.net->named_parameters();
-                for(auto &ref : np.pairs()) {
-                    debug_log << "Layer: " << ref.first << std::endl;
-                    debug_log << (ref.second - experiences[0].net->named_parameters()[ref.first]) << std::endl;
-                }
-                analyze_step(m, experiences[0]);
-                print_stats(sm, total_frames);
-            }
+            // if(DEBUG) 
+            // {
+            //     auto np = m.net->named_parameters();
+            //     for(auto &ref : np.pairs()) {
+            //         debug_log << "Layer: " << ref.first << std::endl;
+            //         debug_log << (ref.second - experiences[0].net->named_parameters()[ref.first]) << std::endl;
+            //     }
+            //     analyze_step(m, experiences[0]);
+            //     print_stats(sm, total_frames);
+            // }
         }
         
         {
@@ -342,16 +345,20 @@ int main(int argc, const char *argv[])
                 old_json = nlohmann::json::array();
             }
             old_json.push_back(json);
-            nlohmann::json plot_json = nlohmann::json::array();
+            // nlohmann::json plot_json = nlohmann::json::array();
 
-            for(size_t i = 0; i < old_json.size() - 1; i += old_json.size() / 15) {
-                plot_json.push_back(old_json[i]);
-            }
-            plot_json.push_back(old_json[old_json.size() - 1]);
+            // // 
+            // size_t di = old_json.size() / 15;
+            // if(di > 0) {
+            //     for(size_t i = 0; i < old_json.size() - 1; i += di) {
+            //         plot_json.push_back(old_json[i]);
+            //     }
+            // }
+            // plot_json.push_back(old_json[old_json.size() - 1]);
             std::ofstream out("metrics.json");
             out << std::setw(4) << old_json << std::endl;
-            std::ofstream out_plot("metrics_plot.json");
-            out_plot << std::setw(4) << plot_json << std::endl;
+            // std::ofstream out_plot("metrics_plot.json");
+            // out_plot << std::setw(4) << plot_json << std::endl;
         }
     }
     else
