@@ -257,13 +257,6 @@ setInterval(() => {
   if(nuke.length) console.log('Number of jobs timed out', nuke.length)
 }, 100);
 
-const child = spawn('/tmp/test')
-
-child.stdin.setEncoding('utf-8')
-child.stdin.write('/tmp/a\n')
-child.stdin.write('/tmp/b\n')
-child.stdin.write('/tmp/c\n')
-
 app.listen(port, async () => {
   console.log(`Example app listening on port ${port}!`)
   await initialize()

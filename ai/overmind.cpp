@@ -125,34 +125,56 @@ float update_model(Model &m, Model &experience, stat_map &stats, const float avg
 	DEBUG("Update with batches...\n");
 	DEBUG("Frames: %d, Batchsize: %d\n", experience.get_frames(), BATCH_SIZE);
 	// for (int frame = experience.get_frames() - 1; frame >= BATCH_SIZE; frame-=BATCH_SIZE) {
+    static std::array<float, BATCH_SIZE> rewards_batch{};
+    static std::array<float, BATCH_SIZE * ACTION_SIZE> action_batch{};
 	for (int frame = 0; frame < experience.get_frames(); frame+=BATCH_SIZE) {
 		DEBUG("Frame %d\n", frame);
 		size_t actual_bs = std::min(BATCH_SIZE, experience.get_frames() - frame);
         // auto thresh = (ACTION_THRESHOLD * torch::ones({(long)actual_bs, ACTION_SIZE})).to(m.net->device);
 
 		auto logp = m.forward_batch_nice(experience.get_batch(frame, frame + actual_bs));
-		// auto p = torch::sigmoid(logp);
-		// auto old_p = torch::sigmoid(experience.forward_batch_nice(frame, frame + actual_bs));
-		auto p = logp;
-		auto old_p = experience.forward_batch_nice(frame, frame + actual_bs);
+		auto p = torch::sigmoid(logp);
+		auto old_p = torch::sigmoid(experience.forward_batch_nice(frame, frame + actual_bs));
+		// auto p = logp;
+		// auto old_p = experience.forward_batch_nice(frame, frame + actual_bs);
 
-        std::array<float, BATCH_SIZE * ACTION_SIZE> rewards_batch{};
-        std::fill(std::begin(rewards_batch), std::end(rewards_batch), 0.0f);
+        // std::fill(std::begin(pi_batch), std::end(pi_batch), 0.0f);
 		for(size_t i = 0; i < actual_bs; ++i) {
+            rewards_batch[i] = reward.rewards[frame + i];
             for(size_t j = 0; j < ACTION_SIZE; ++j) {
-                if(experience.actions[frame + i][j] != 0) {
-                    rewards_batch[i * ACTION_SIZE + j] = reward.rewards[frame + i];
-                    // debug_log << reward.rewards[frame + i] << std::endl;
-                }
+                action_batch[i * ACTION_SIZE + j] = experience.actions[frame + i][j];
+                // if(experience.actions[frame + i][j] != 0) {
+                //     rewards_batch[i * ACTION_SIZE + j] = reward.rewards[frame + i];
+                //     // debug_log << reward.rewards[frame + i] << std::endl;
+                // }
             }
 		}
-		auto trewards = torch::from_blob(static_cast<void*>(rewards_batch.data()), {(long)actual_bs, ACTION_SIZE}, torch::kFloat32);
+        /*
+            a = (a_1, a_2, a_3, ...., a_n), a_i = {0, 1}
+
+            a = (1, 1, 0, 0, 1)
+
+            pi(a | s) = \prod_i [ a_i phi_i(s) + (1 - a_i)(1 - phi_i(s)) ]
+
+            LH = \sum_b [ pi(a_b | s_b) / pi_old(a_b | s_b) * R ]
+
+        */
+
+		auto trewards = torch::from_blob(static_cast<void*>(rewards_batch.data()), {(long)actual_bs, 1}, torch::kFloat32);
+		auto torch_actions = torch::from_blob(static_cast<void*>(action_batch.data()), {(long)actual_bs, ACTION_SIZE}, torch::kFloat32);
+        auto gpu_actions = torch_actions.to(m.net->device);
+        auto pi = gpu_actions * p + (1.0f - gpu_actions) * (1.0f - p);
+        auto old_pi = gpu_actions * old_p + (1.0f - gpu_actions) * (1.0f - old_p);
+        auto prod_pi = pi.prod(1);
+        auto prod_old_pi = old_pi.prod(1);
         // debug_log << trewards << std::endl;
         auto trewards_gpu = trewards.to(m.net->device);
         //.to(m.net->device);
-		auto masked_r = torch::exp(p - old_p);
-		auto lloss = torch::min(masked_r * trewards_gpu, torch::clamp(masked_r, 1.0 - 0.2, 1.0 + 0.2) * trewards_gpu).sum();
-		(-lloss).backward();
+		// auto masked_r = torch::exp(p - old_p);
+        auto r = prod_pi / torch::clamp(prod_old_pi, 0.0001f, 1.0f);
+		auto lloss = torch::min(r * trewards_gpu, torch::clamp(r, 1.0 - 0.2, 1.0 + 0.2) * trewards_gpu);
+        auto sloss = lloss.sum();
+		(-sloss).backward();
 	}
 	DEBUG("Loss backwards\n");
 	DEBUG("Returning...\n");
@@ -278,6 +300,7 @@ int main(int argc, const char *argv[])
             json["rewards"] = calculate_rewards(experiences[0]).rewards;
             json["actions"] = experiences[0].actions;
             for(auto &ref : np.pairs()) {
+                std::cout << ref.first << std::endl;
                 std::cout << "mean: " << ref.second.mean().item<float>() << " std: " << ref.second.std().item<float>() << std::endl;
                 auto cp = ref.second.to(torch::kCPU);
                 auto dcp = (ref.second - oldp[ref.first]).to(torch::kCPU);
@@ -319,8 +342,16 @@ int main(int argc, const char *argv[])
                 old_json = nlohmann::json::array();
             }
             old_json.push_back(json);
+            nlohmann::json plot_json = nlohmann::json::array();
+
+            for(size_t i = 0; i < old_json.size() - 1; i += old_json.size() / 15) {
+                plot_json.push_back(old_json[i]);
+            }
+            plot_json.push_back(old_json[old_json.size() - 1]);
             std::ofstream out("metrics.json");
             out << std::setw(4) << old_json << std::endl;
+            std::ofstream out_plot("metrics_plot.json");
+            out_plot << std::setw(4) << plot_json << std::endl;
         }
     }
     else

@@ -35,7 +35,7 @@ typedef std::array<float, STATE_SIZE> StateType;
 typedef std::array<uint8_t, ACTION_SIZE> ActionType;
 struct Net : torch::nn::Module {
 	Net() : device(get_device()) {
-		bn = register_module("bn", torch::nn::BatchNorm(STATE_SIZE));
+		// bn = register_module("bn", torch::nn::BatchNorm(STATE_SIZE));
 		fc1 = register_module("fc1", torch::nn::Linear(STATE_SIZE, N_HIDDEN));
 		fc2 = register_module("fc2", torch::nn::Linear(N_HIDDEN, N_HIDDEN));
 		fc3 = register_module("fc3", torch::nn::Linear(N_HIDDEN, N_ACTIONS));
@@ -79,7 +79,7 @@ struct Net : torch::nn::Module {
 		return false;
 	}
 
-	torch::nn::BatchNorm bn{nullptr};
+	// torch::nn::BatchNorm bn{nullptr};
 	torch::nn::Linear fc1{nullptr}, fc2{nullptr}, fc3{nullptr};
 	torch::Device device;
 };
