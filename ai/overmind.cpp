@@ -8,8 +8,18 @@
 
 #define DEBUG(...)
 
+static int get_batch_size()
+{
+	const char *bs = getenv("BATCH_SIZE");
+	if(bs)
+	{
+		return atoi(bs);
+	}
+	return 1000;
+}
+
 const float LR = 0.0001;//0.00000001;
-static const int BATCH_SIZE = 1000;
+static int BATCH_SIZE = get_batch_size();
 const int PPO_EPOCHS = 5;
 const bool DEBUG = nullptr != getenv("DEBUG");
 
@@ -122,21 +132,24 @@ float update_model(Model &m, Model &experience, stat_map &stats, const float avg
 	for (int frame = experience.get_frames() - 1; frame >= 1; --frame) {
 		stats[action_name(experience.actions[frame])]++;
 	}
-	DEBUG("Update with batches...\n");
-	DEBUG("Frames: %d, Batchsize: %d\n", experience.get_frames(), BATCH_SIZE);
-	// for (int frame = experience.get_frames() - 1; frame >= BATCH_SIZE; frame-=BATCH_SIZE) {
-    static std::array<float, BATCH_SIZE> rewards_batch{};
-    static std::array<float, BATCH_SIZE * ACTION_SIZE> action_batch{};
+
+	// std::cout << "Frames: " << experience.get_frames() << ", Batchsize: " << BATCH_SIZE << std::endl;
+
+	std::vector<float> rewards_batch;
+	rewards_batch.resize(BATCH_SIZE);
+	std::vector<float> action_batch;
+	action_batch.resize(BATCH_SIZE * ACTION_SIZE);
+
 	for (int frame = 0; frame < experience.get_frames(); frame+=BATCH_SIZE) {
-		DEBUG("Frame %d\n", frame);
+		// std::cout << "Frame: " << frame << ", Batchsize: " << actual_bs << std::endl;
 		size_t actual_bs = std::min(BATCH_SIZE, experience.get_frames() - frame);
         // auto thresh = (ACTION_THRESHOLD * torch::ones({(long)actual_bs, ACTION_SIZE})).to(m.net->device);
-
 		auto logp = m.forward_batch_nice(experience.get_batch(frame, frame + actual_bs));
 		auto p = torch::sigmoid(logp);
 		auto old_p = torch::sigmoid(experience.forward_batch_nice(frame, frame + actual_bs));
 		// auto p = logp;
 		// auto old_p = experience.forward_batch_nice(frame, frame + actual_bs);
+
 
         // std::fill(std::begin(pi_batch), std::end(pi_batch), 0.0f);
 		for(size_t i = 0; i < actual_bs; ++i) {
@@ -159,23 +172,26 @@ float update_model(Model &m, Model &experience, stat_map &stats, const float avg
             LH = \sum_b [ pi(a_b | s_b) / pi_old(a_b | s_b) * R ]
 
         */
-
 		auto trewards = torch::from_blob(static_cast<void*>(rewards_batch.data()), {(long)actual_bs, 1}, torch::kFloat32);
 		auto torch_actions = torch::from_blob(static_cast<void*>(action_batch.data()), {(long)actual_bs, ACTION_SIZE}, torch::kFloat32);
         auto gpu_actions = torch_actions.to(m.net->device);
+
         auto pi = gpu_actions * p + (1.0f - gpu_actions) * (1.0f - p);
         auto old_pi = gpu_actions * old_p + (1.0f - gpu_actions) * (1.0f - old_p);
         auto prod_pi = pi.prod(1);
         auto prod_old_pi = old_pi.prod(1);
         // debug_log << trewards << std::endl;
         auto trewards_gpu = trewards.to(m.net->device);
+
         //.to(m.net->device);
 		// auto masked_r = torch::exp(p - old_p);
         auto r = prod_pi / torch::clamp(prod_old_pi, 0.0001f, 1.0f);
 		auto lloss = torch::min(r * trewards_gpu, torch::clamp(r, 1.0 - 0.2, 1.0 + 0.2) * trewards_gpu);
-        auto sloss = lloss.sum();
+		auto sloss = lloss.sum();
+
 		(-sloss).backward();
 	}
+
 	DEBUG("Loss backwards\n");
 	DEBUG("Returning...\n");
 	return reward.total_reward;

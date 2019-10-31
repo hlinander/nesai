@@ -19,7 +19,7 @@ PHONY: all
 all: overmind libbrain.so
 
 clean:
-	rm -fr *.o *.so
+	rm -fr overmind libbrain.so *.o *.so
 
 overmind: overmind.o
 	g++ $< $(LIBS) -o $@
