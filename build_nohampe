@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+mkdir -p bin
+
+# Brian as a Library
+./build_libbrain hampus=off && \
+(cd HeadlessQuickNes-master/linux && \
+	make && \
+	cd .. && \
+	cp hqn_quicknes ../bin)
