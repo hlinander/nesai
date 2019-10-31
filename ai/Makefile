@@ -3,6 +3,10 @@ INCLUDES += -Icereal-1.2.2/include
 CPPFLAGS  = -std=c++17 -O3 -Wall -fPIC -g -ggdb
 LIBS = -llua5.3 -lcuda -ltorch -lc10
 
+ifeq ($(hampus), off)
+	CPPFLAGS += -DNO_HAMPUS
+endif
+
 ifneq ($(findstring -ARCH,$(shell uname -a)),-ARCH)
 	CPPFLAGS += -DLUA_WITH_VERSION
 else

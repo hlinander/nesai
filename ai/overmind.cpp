@@ -9,7 +9,7 @@
 #define DEBUG(...)
 
 const float LR = 0.0001;//0.00000001;
-static const int BATCH_SIZE = 10000;
+static const int BATCH_SIZE = 1000;
 const int PPO_EPOCHS = 5;
 const bool DEBUG = nullptr != getenv("DEBUG");
 
@@ -292,7 +292,7 @@ int main(int argc, const char *argv[])
 
             }
         }
-
+#ifndef NO_HAMPUS
         {
             Benchmark hampe_dbg("hampe_dbg");
             auto np = m.net->named_parameters();
@@ -328,11 +328,12 @@ int main(int argc, const char *argv[])
             //     print_stats(sm, total_frames);
             // }
         }
-        
+#endif
         {
             Benchmark save("savefile");
             m.save_file(argv[4]);
         }
+#ifndef NO_HAMPUS
         {
             Benchmark hampe2("hampe2");
             std::ifstream old("metrics.json");
@@ -360,6 +361,7 @@ int main(int argc, const char *argv[])
             // std::ofstream out_plot("metrics_plot.json");
             // out_plot << std::setw(4) << plot_json << std::endl;
         }
+#endif
     }
     else
     {
