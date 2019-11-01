@@ -18,9 +18,19 @@ static int get_batch_size()
 	return 1000;
 }
 
+static int get_ppo_epochs()
+{
+	const char *bs = getenv("PPO_EPOCHS");
+	if(bs)
+	{
+		return atoi(bs);
+	}
+	return 3;
+}
+
 const float LR = 0.0001;//0.00000001;
 static int BATCH_SIZE = get_batch_size();
-const int PPO_EPOCHS = 5;
+const int PPO_EPOCHS = get_ppo_epochs();
 const bool DEBUG = nullptr != getenv("DEBUG");
 
 static std::ofstream debug_log;
@@ -313,36 +323,26 @@ int main(int argc, const char *argv[])
             Benchmark hampe_dbg("hampe_dbg");
             auto np = m.net->named_parameters();
             auto oldp = experiences[0].net->named_parameters();
-            json["parameter_stats"] = nlohmann::json({});
-            json["parameters"] = nlohmann::json({});
-            json["dparameters"] = nlohmann::json({});
-            json["rewards"] = calculate_rewards(experiences[0]).rewards;
-            json["actions"] = experiences[0].actions;
-            for(auto &ref : np.pairs()) {
-                std::cout << ref.first << std::endl;
-                std::cout << "mean: " << ref.second.mean().item<float>() << " std: " << ref.second.std().item<float>() << std::endl;
-                auto cp = ref.second.to(torch::kCPU);
-                auto dcp = (ref.second - oldp[ref.first]).to(torch::kCPU);
+            // json["parameter_stats"] = nlohmann::json({});
+            // json["parameters"] = nlohmann::json({});
+            // json["dparameters"] = nlohmann::json({});
+            // json["rewards"] = calculate_rewards(experiences[0]).rewards;
+            // json["actions"] = experiences[0].actions;
+            // for(auto &ref : np.pairs()) {
+            //     std::cout << ref.first << std::endl;
+            //     std::cout << "mean: " << ref.second.mean().item<float>() << " std: " << ref.second.std().item<float>() << std::endl;
+            //     auto cp = ref.second.to(torch::kCPU);
+            //     auto dcp = (ref.second - oldp[ref.first]).to(torch::kCPU);
 
-                int64_t nel = std::min(cp.numel(), static_cast<int64_t>(1000));
-                std::vector<float> p(cp.data<float>(), cp.data<float>() + nel);
-                std::vector<float> dp(dcp.data<float>(), dcp.data<float>() + nel);
-                json["parameters"][ref.first]["values"] = p;
-                json["dparameters"][ref.first]["values"] = dp;
-                json["parameter_stats"][ref.first]["mean"] = ref.second.mean().item<float>();
-                json["parameter_stats"][ref.first]["stddev"] = ref.second.std().item<float>();
-            }
-            json["mean_reward"] = reward / static_cast<float>(n_rewards);
-            // if(DEBUG) 
-            // {
-            //     auto np = m.net->named_parameters();
-            //     for(auto &ref : np.pairs()) {
-            //         debug_log << "Layer: " << ref.first << std::endl;
-            //         debug_log << (ref.second - experiences[0].net->named_parameters()[ref.first]) << std::endl;
-            //     }
-            //     analyze_step(m, experiences[0]);
-            //     print_stats(sm, total_frames);
+            //     int64_t nel = std::min(cp.numel(), static_cast<int64_t>(1000));
+            //     std::vector<float> p(cp.data<float>(), cp.data<float>() + nel);
+            //     std::vector<float> dp(dcp.data<float>(), dcp.data<float>() + nel);
+            //     json["parameters"][ref.first]["values"] = p;
+            //     json["dparameters"][ref.first]["values"] = dp;
+            //     json["parameter_stats"][ref.first]["mean"] = ref.second.mean().item<float>();
+            //     json["parameter_stats"][ref.first]["stddev"] = ref.second.std().item<float>();
             // }
+            json["mean_reward"] = reward / static_cast<float>(n_rewards);
         }
 #endif
         {
@@ -362,20 +362,8 @@ int main(int argc, const char *argv[])
                 old_json = nlohmann::json::array();
             }
             old_json.push_back(json);
-            // nlohmann::json plot_json = nlohmann::json::array();
-
-            // // 
-            // size_t di = old_json.size() / 15;
-            // if(di > 0) {
-            //     for(size_t i = 0; i < old_json.size() - 1; i += di) {
-            //         plot_json.push_back(old_json[i]);
-            //     }
-            // }
-            // plot_json.push_back(old_json[old_json.size() - 1]);
             std::ofstream out("metrics.json");
             out << std::setw(4) << old_json << std::endl;
-            // std::ofstream out_plot("metrics_plot.json");
-            // out_plot << std::setw(4) << plot_json << std::endl;
         }
 #endif
     }

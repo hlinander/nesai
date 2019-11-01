@@ -47,6 +47,7 @@ RUN echo "install.packages('gridExtra')" | R --no-save
 RUN echo "install.packages('reshape2')" | R --no-save
 RUN echo "install.packages('ggridges')" | R --no-save
 RUN echo "install.packages('qpcR')" | R --no-save
+RUN echo "install.packages('tictoc')" | R --no-save
 ENV CPATH=/pytorch/torch/include/:/pytorch/torch/include/torch/csrc/api/include/
 ENV LIBRARY_PATH=/pytorch/torch/lib:/usr/lib/x86_64-linux-gnu/
 ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/intel/mkl/lib/intel64_lin/:/pytorch/torch/lib
