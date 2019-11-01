@@ -3,6 +3,8 @@ local old_lives
 local old_page
 local old_screenx
 local old_relx
+local last_absolute_x
+local idle_frames
 
 local is_dead
 local last_input
@@ -13,8 +15,10 @@ function brain_begin_rollout()
 	old_page = 0
 	old_screenx = 0
 	old_relx = 0
+	last_absolute_x = 0
 	is_dead = false
 	last_input = 0
+	idle_frames = 0
 end
 
 function brain_validate_frame(frame)
@@ -43,14 +47,32 @@ function brain_get_reward(frame)
 	local level = read_cpu(0x760)
 	local page = read_cpu(0x71A)
 	local screenx = read_cpu(0x71c)
-	-- local relx = read_cpu(0x3ad)
+	local relx = read_cpu(0x3ad)
 
+	local absolute_x = page * 0x100 + screenx + relx
 	local xscore = ((page - old_page) * 0x100) + (screenx - old_screenx) -- + (relx - old_relx)
 	local reward = 0
 
 	if 1 == read_cpu(0x770) and 3 == read_cpu(0x772) then
 		reward = xscore + (math.abs(old_level - level) * 1000)
+		--
+		-- Penalize spazzing about like a fucking retard and not moving.
+		-- Essentially, make a 10px movement every 2 seconds or lose 10 pts / frame
+		--
+		if math.abs(last_absolute_x - absolute_x) < 10 then
+			idle_frames = idle_frames + 1
+			if idle_frames > 120 then
+				reward = reward - 10
+			end
+		else
+			idle_frames = 0
+			last_absolute_x = absolute_x
+		end
+	else
+		last_absolute_x = absolute_x
+		idle_frames = 0
 	end
+
 
 	if old_lives ~= lives then
 		reward = reward - 1000
@@ -62,7 +84,7 @@ function brain_get_reward(frame)
 
 	old_page = page
 	old_screenx = screenx
-	-- old_relx = relx
+	old_relx = relx
 	old_level = level
 
 	return reward
