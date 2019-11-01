@@ -295,7 +295,7 @@ bool brain_on_frame()
 	{
 		std::cout << "FPS: " << fps << std::endl;
 		fps = 0;
-		next_fps = now + 100;
+		next_fps = now + 1000;
 	}
 	++frame;
 	return true;

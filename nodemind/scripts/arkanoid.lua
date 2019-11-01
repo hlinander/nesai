@@ -42,7 +42,7 @@ function brain_get_reward(frame)
 			if 0 == lives then
 				death_hack = true
 			end
-			return -1000
+			return -10
 		end
 	end
 	local d6 = read_cpu(0x370)

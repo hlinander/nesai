@@ -3,3 +3,6 @@ roms
 models
 rollouts
 node_modules
+doom.log
+metrics.json
+metrics_read.json

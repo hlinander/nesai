@@ -97,6 +97,12 @@ app.post('/newai', async (req, res) => {
   return res.sendStatus(200)
 })
 
+app.get('/ai/:name', async (req, res) => {
+  const name = req.params.name
+  if(!name || !(name in ais)) return res.sendStatus(500)
+  return res.send(ais[name])
+})
+
 app.get('/generation/:name', (req, res) => {
   const ai = ais[req.params.name]
   if(!ai) return res.sendStatus(500)

@@ -153,6 +153,16 @@ static int run_brain_mode()
 	return 0;
 }
 
+static int get_frame_rate()
+{
+	const char *fr = getenv("FPS");
+	if(fr)
+	{
+		return atoi(fr);
+	}
+	return 0;
+}
+
 int main(int argc, const char *argv[])
 {
 	SDL_SetMainReady();
@@ -180,11 +190,12 @@ int main(int argc, const char *argv[])
 		ngui_setscale(2);
 	}
 
-	nemu_setframerate(0);
 
 	if(brain_enabled())
 	{
 		uint32_t rollout = 0;
+
+		nemu_setframerate(get_frame_rate());
 
 		for(;;)
 		{
@@ -210,6 +221,7 @@ int main(int argc, const char *argv[])
 		return 0;
 	}
 
+	nemu_setframerate(60);
 	return run_human_mode();
 }
 
