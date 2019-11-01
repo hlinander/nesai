@@ -16,13 +16,13 @@ const roms = {}
 const models = {}
 const jobs = {}
 
-app.use(bodyParser.json({limit: '500mb'}));
+app.use(bodyParser.json({limit: '5000mb'}));
 app.use(bodyParser.raw({
   inflate: true,
-  limit: '500mb',
+  limit: '5000mb',
   type: 'application/octet-stream'
 }))
-app.use(bodyParser.urlencoded({limit: '50mb', extended: true}));
+app.use(bodyParser.urlencoded({limit: '5000mb', extended: true}));
 app.set('view engine', 'pug')
 
 function getModelFile(name, generation) {
@@ -45,7 +45,7 @@ function createJob(ai) {
   job_id += 1
   jobs[job_id] = {
     ai,
-    expires: new Date((new Date()).getTime() + ai.job_timeout).getTime() // aids.
+    expires: new Date((new Date()).getTime() + (ai.rollouts * 10000)).getTime() // aids.
   }
   return {
     job_id,
@@ -75,8 +75,8 @@ app.get('/stats', async (req, res) => {
 });
 
 app.post('/newai', async (req, res) => {
-  let {name, rollouts, jobs_per_generation, job_timeout, rom, script} = req.body
-  if(!name || !rollouts || !job_timeout || !rom || !script) return res.sendStatus(500)
+  let {name, rollouts, jobs_per_generation, rom, script} = req.body
+  if(!name || !rollouts || !rom || !script) return res.sendStatus(500)
   if((name in ais) || !(rom in roms) || !(script in scripts)) return res.sendStatus(501)
 
   jobs_per_generation = jobs_per_generation || 5
@@ -88,7 +88,6 @@ app.post('/newai', async (req, res) => {
     jobs_per_generation: parseInt(jobs_per_generation),
     jobs_done: 0,
     rollouts: parseInt(rollouts),
-    job_timeout: parseInt(job_timeout),
     rom,
     model,
     script
