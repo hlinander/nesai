@@ -15,6 +15,8 @@ using namespace hqn;
 
 static HQNState hqn_state;
 
+static bool is_human = false;
+
 #define GET_GUI() hqn::GUIController *gui = static_cast<hqn::GUIController*>(hqn_state.getListener())
 
 static void ngui_setscale(int scale = 1)
@@ -94,7 +96,7 @@ struct gamepad_binding
 	uint8_t bit;
 };
 
-static int run_human_mode()
+static int run_brain()
 {
 	gamepad_binding bindings[] = 
 	{
@@ -116,32 +118,30 @@ static int run_human_mode()
 		{ SDL_SCANCODE_RIGHT, 0x80 },
 	};
 
-	while(ngui_isenabled())
-	{
-		uint8_t bits = 0;
-		const Uint8 *kb = SDL_GetKeyboardState(NULL);
-		
-		for(size_t i = 0; i < (sizeof(bindings) / sizeof(bindings[0])); ++i)
-		{
-			const auto &b = bindings[i];
-			if(kb[b.sdl_scancode])
-			{
-				bits |= b.bit;
-			}
-		}
-
-		njoypad_set(0, bits);
-		nemu_frameadvance();
-	}
-
-	return 0;
-}
-
-static int run_brain_mode()
-{
 	while(brain_on_frame())
 	{
 		uint8_t bits = brain_controller_bits();
+
+		if(is_human)
+		{
+			if(!ngui_isenabled())
+			{
+				break;
+			}
+
+			const Uint8 *kb = SDL_GetKeyboardState(NULL);
+		
+			bits = 0;
+
+			for(size_t i = 0; i < (sizeof(bindings) / sizeof(bindings[0])); ++i)
+			{
+				const auto &b = bindings[i];
+				if(kb[b.sdl_scancode])
+				{
+					bits |= b.bit;
+				}
+			}
+		}
 
 		if(!brain_headless())
 		{
@@ -155,6 +155,11 @@ static int run_brain_mode()
 
 static int get_frame_rate()
 {
+	if(is_human)
+	{
+		return 60;
+	}
+
 	const char *fr = getenv("FPS");
 	if(fr)
 	{
@@ -168,9 +173,24 @@ int main(int argc, const char *argv[])
 	SDL_SetMainReady();
 	brain_init();
 
+	if(!brain_enabled())
+	{
+		std::cout << "Brain not enabled, use BE=<script.lua>" << std::endl;
+		return 1;
+	}
+
 	if(argc < 2)
 	{
 		std::cout << "Usage: " << argv[0] << " <rom>" << std::endl;
+		return 1;
+	}
+
+	const char * const human = getenv("HUMAN");
+	is_human = (human && '1' == *human);
+
+	if(is_human && brain_headless())
+	{
+		std::cout << "Cant run human mode in headless. Remove HL=1" << std::endl;
 		return 1;
 	}
 
@@ -190,39 +210,32 @@ int main(int argc, const char *argv[])
 		ngui_setscale(2);
 	}
 
+	nemu_setframerate(get_frame_rate());
 
-	if(brain_enabled())
+	uint32_t rollout = 0;
+
+	for(;;)
 	{
-		uint32_t rollout = 0;
+		brain_bind_cpu_mem(hqn_state.emu()->low_mem());
 
-		nemu_setframerate(get_frame_rate());
+		int rc = run_brain();
 
-		for(;;)
+		if(0 != rc)
 		{
-			brain_bind_cpu_mem(hqn_state.emu()->low_mem());
-
-			int rc = run_brain_mode();
-
-			if(0 != rc)
-			{
-				std::cout << "Brain failed to run with: " << rc << std::endl;
-				return rc;
-			}
-
-			if(++rollout == brain_num_rollouts())
-			{
-				std::cout << "Ran " << rollout << " rollouts successfully! :)" << std::endl;
-				break;
-			}
-
-			nemu_hard_reset();
+			std::cout << "Brain failed to run with: " << rc << std::endl;
+			return rc;
 		}
 
-		return 0;
+		if(++rollout == brain_num_rollouts())
+		{
+			std::cout << "Ran " << rollout << " rollouts successfully! :)" << std::endl;
+			break;
+		}
+
+		nemu_hard_reset();
 	}
 
-	nemu_setframerate(60);
-	return run_human_mode();
+	return 0;
 }
 
 
