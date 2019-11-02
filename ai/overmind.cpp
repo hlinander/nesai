@@ -2,6 +2,7 @@
 #include <vector>
 #include <unordered_map>
 #include <algorithm>
+#include <experimental/filesystem>
 #include "model.h"
 #include "bm.h"
 #include "json.hpp"
@@ -154,6 +155,7 @@ float update_model(Model &m, Model &experience, stat_map &stats, const float avg
 		// std::cout << "Frame: " << frame << ", Batchsize: " << actual_bs << std::endl;
 		size_t actual_bs = std::min(BATCH_SIZE, experience.get_frames() - frame);
         // auto thresh = (ACTION_THRESHOLD * torch::ones({(long)actual_bs, ACTION_SIZE})).to(m.net->device);
+        auto v = m.value_net->forward(experience.get_batch(frame, frame + actual_bs));
 		auto logp = m.forward_batch_nice(experience.get_batch(frame, frame + actual_bs));
 		auto p = torch::sigmoid(logp);
 		auto old_p = torch::sigmoid(experience.forward_batch_nice(frame, frame + actual_bs));
@@ -183,6 +185,8 @@ float update_model(Model &m, Model &experience, stat_map &stats, const float avg
 
         */
 		auto trewards = torch::from_blob(static_cast<void*>(rewards_batch.data()), {(long)actual_bs, 1}, torch::kFloat32);
+        auto trewards_gpu = trewards.to(m.net->device);
+        auto trewards_minus_V = trewards_gpu - v;
 		auto torch_actions = torch::from_blob(static_cast<void*>(action_batch.data()), {(long)actual_bs, ACTION_SIZE}, torch::kFloat32);
         auto gpu_actions = torch_actions.to(m.net->device);
 
@@ -191,7 +195,6 @@ float update_model(Model &m, Model &experience, stat_map &stats, const float avg
         auto prod_pi = pi.prod(1);
         auto prod_old_pi = old_pi.prod(1);
         // debug_log << trewards << std::endl;
-        auto trewards_gpu = trewards.to(m.net->device);
 
         //.to(m.net->device);
 		// auto masked_r = torch::exp(p - old_p);
@@ -200,6 +203,11 @@ float update_model(Model &m, Model &experience, stat_map &stats, const float avg
 		auto sloss = lloss.sum();
 
 		(-sloss).backward();
+
+        m.value_optimizer.zero_grad();
+        auto vloss = ((trewards_gpu - v) * (trewards_gpu - v)).sum();
+        (vloss).backward();
+        m.value_optimizer.step();
 	}
 
 	DEBUG("Loss backwards\n");
@@ -253,11 +261,15 @@ int main(int argc, const char *argv[])
     }
     else if(0 == strcmp(argv[1], "update"))
     {
-        if(argc < 5)
+        if(argc < 6)
         {
-            std::cout << "update <model> <experiences> <model_out>" << std::endl;
+            std::cout << "update <model> <experiences> <model_out> <generation>" << std::endl;
             return 1;
         }
+        constexpr size_t arg_model = 2;
+        constexpr size_t arg_experiences = 3;
+        constexpr size_t arg_model_out = 4;
+        constexpr size_t arg_generation = 5;
         std::cout << "Update!" << std::endl;
         Benchmark full_ud("full_update");
         Model m(LR);
@@ -297,6 +309,7 @@ int main(int argc, const char *argv[])
 		for(int epoch = 0; epoch < PPO_EPOCHS; epoch++) {
 			Benchmark bepoch{"epoch"};
 			m.optimizer.zero_grad();
+            m.value_optimizer.zero_grad();
             for(auto &e : experiences)
             {
                 reward += update_model(m, e, sm, 0.0, false);
@@ -304,6 +317,7 @@ int main(int argc, const char *argv[])
                 total_frames += e.get_frames();
             }
 			m.optimizer.step();
+			m.value_optimizer.step();
             if(m.net->isnan()) {
                 std::cout << "Doomed tensors!" << std::endl;
                 for(auto &e : experiences)
@@ -323,26 +337,34 @@ int main(int argc, const char *argv[])
             Benchmark hampe_dbg("hampe_dbg");
             auto np = m.net->named_parameters();
             auto oldp = experiences[0].net->named_parameters();
-            // json["parameter_stats"] = nlohmann::json({});
-            // json["parameters"] = nlohmann::json({});
-            // json["dparameters"] = nlohmann::json({});
-            // json["rewards"] = calculate_rewards(experiences[0]).rewards;
-            // json["actions"] = experiences[0].actions;
-            // for(auto &ref : np.pairs()) {
-            //     std::cout << ref.first << std::endl;
-            //     std::cout << "mean: " << ref.second.mean().item<float>() << " std: " << ref.second.std().item<float>() << std::endl;
-            //     auto cp = ref.second.to(torch::kCPU);
-            //     auto dcp = (ref.second - oldp[ref.first]).to(torch::kCPU);
+            json["parameter_stats"] = nlohmann::json({});
+            json["parameters"] = nlohmann::json({});
+            json["dparameters"] = nlohmann::json({});
+            json["rewards"] = calculate_rewards(experiences[0]).rewards;
+            json["actions"] = experiences[0].actions;
+            for(auto &ref : np.pairs()) {
+                std::cout << ref.first << std::endl;
+                std::cout << "mean: " << ref.second.mean().item<float>() << " std: " << ref.second.std().item<float>() << std::endl;
+                auto cp = ref.second.to(torch::kCPU);
+                auto dcp = (ref.second - oldp[ref.first]).to(torch::kCPU);
 
-            //     int64_t nel = std::min(cp.numel(), static_cast<int64_t>(1000));
-            //     std::vector<float> p(cp.data<float>(), cp.data<float>() + nel);
-            //     std::vector<float> dp(dcp.data<float>(), dcp.data<float>() + nel);
-            //     json["parameters"][ref.first]["values"] = p;
-            //     json["dparameters"][ref.first]["values"] = dp;
-            //     json["parameter_stats"][ref.first]["mean"] = ref.second.mean().item<float>();
-            //     json["parameter_stats"][ref.first]["stddev"] = ref.second.std().item<float>();
-            // }
+                int64_t nel = std::min(cp.numel(), static_cast<int64_t>(1000));
+                std::vector<float> p(cp.data<float>(), cp.data<float>() + nel);
+                std::vector<float> dp(dcp.data<float>(), dcp.data<float>() + nel);
+                json["parameters"][ref.first]["values"] = p;
+                json["dparameters"][ref.first]["values"] = dp;
+                json["parameter_stats"][ref.first]["mean"] = ref.second.mean().item<float>();
+                json["parameter_stats"][ref.first]["stddev"] = ref.second.std().item<float>();
+            }
             json["mean_reward"] = reward / static_cast<float>(n_rewards);
+            std::vector<float> values;
+            values.resize(experiences[0].get_frames());
+            for (int frame = 0; frame < experiences[0].get_frames(); frame+=BATCH_SIZE) {
+                size_t actual_bs = std::min(BATCH_SIZE, experiences[0].get_frames() - frame);
+                auto v = m.value_net->forward(experiences[0].get_batch(frame, frame + actual_bs)).to(torch::kCPU);
+                std::copy(v.data<float>(), v.data<float>() + actual_bs, values.begin() + frame);
+            }
+            json["values"] = values;
         }
 #endif
         {
@@ -352,18 +374,9 @@ int main(int argc, const char *argv[])
 #ifndef NO_HAMPUS
         {
             Benchmark hampe2("hampe2");
-            std::ifstream old("metrics.json");
-            nlohmann::json old_json;
-            try {
-                old >> old_json;
-            }
-            catch(nlohmann::json::exception& e)
-            {
-                old_json = nlohmann::json::array();
-            }
-            old_json.push_back(json);
-            std::ofstream out("metrics.json");
-            out << std::setw(4) << old_json << std::endl;
+            std::experimental::filesystem::create_directories("metrics/");
+            std::ofstream out(std::string("metrics/") + argv[arg_generation] + ".json");
+            out << std::setw(4) << json << std::endl;
         }
 #endif
     }

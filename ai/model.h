@@ -33,12 +33,14 @@ constexpr size_t ACTION_SIZE = static_cast<size_t>(Action::MAX);
 
 typedef std::array<float, STATE_SIZE> StateType;
 typedef std::array<uint8_t, ACTION_SIZE> ActionType;
+
+template <int N_OUTPUT>
 struct Net : torch::nn::Module {
 	Net() : device(get_device()) {
 		// bn = register_module("bn", torch::nn::BatchNorm(STATE_SIZE));
 		fc1 = register_module("fc1", torch::nn::Linear(STATE_SIZE, N_HIDDEN));
 		fc2 = register_module("fc2", torch::nn::Linear(N_HIDDEN, N_HIDDEN));
-		fc3 = register_module("fc3", torch::nn::Linear(N_HIDDEN, N_ACTIONS));
+		fc3 = register_module("fc3", torch::nn::Linear(N_HIDDEN, N_OUTPUT));
 		torch::nn::init::xavier_normal_(fc1->weight);
 		torch::nn::init::xavier_normal_(fc2->weight);
 		torch::nn::init::xavier_normal_(fc3->weight);
@@ -85,8 +87,11 @@ struct Net : torch::nn::Module {
 };
 
 struct Model {
-	typedef Net NetType;
-	Model(float lr) : net{std::make_shared<NetType>()}, optimizer(net->parameters(), lr)
+	typedef Net<N_ACTIONS> NetType;
+	Model(float lr) : net{std::make_shared<NetType>()}, 
+					  value_net{std::make_shared<Net<1>>()}, 
+					  optimizer(net->parameters(), lr),
+					  value_optimizer(value_net->parameters(), lr)
 	{
 	}
 
@@ -109,6 +114,12 @@ struct Model {
 		std::stringstream sso;
 		torch::save(optimizer, sso);
 		a(cereal::make_nvp("opt", sso.str()));
+		std::stringstream vss;
+		torch::save(value_net, vss);
+		a(cereal::make_nvp("valuenet", vss.str()));
+		std::stringstream vsso;
+		torch::save(value_optimizer, vsso);
+		a(cereal::make_nvp("valueopt", vsso.str()));
 	}
 
 	void save_file(const std::string &filename) const {
@@ -144,6 +155,14 @@ struct Model {
 		a(so);
 		std::stringstream sso{so};
 		torch::load(optimizer, sso, net->device);		
+		std::string vs;
+		a(vs);
+		std::stringstream vss{vs};
+		torch::load(value_net, vss, value_net->device);		
+		std::string vso;
+		a(vso);
+		std::stringstream vsso{vso};
+		torch::load(value_optimizer, vsso, value_net->device);		
 	}
 
 	torch::Tensor forward(StateType &s) {
@@ -207,7 +226,9 @@ struct Model {
 
 	// Net<TAction, StateParam::count()> net;
 	std::shared_ptr<NetType> net;
+	std::shared_ptr<Net<1>> value_net;
 	torch::optim::Adam optimizer;
+	torch::optim::Adam value_optimizer;
 	std::vector<ActionType> actions;
 	std::vector<std::array<float, ACTION_SIZE>> one_hot_actions;
 	std::vector<StateType> states;

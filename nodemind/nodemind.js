@@ -60,11 +60,67 @@ async function saveAI(ai) {
   await fs.writeFile('ai/' + ai.name + '.json', JSON.stringify(ai))
 }
 
-app.get('/stats', async (req, res) => {
+/* Plots value network reward estimate vs observed rewards */
+app.get('/valuestats', async (req, res) => {
+  const n = parseInt(req.params.nGenerations)
   try {
-    // ...wow... kalorisparandet är högt här...
-    await fs.copyFile("metrics.json", "metrics_read.json")
-    await exec("R --no-save --no-restore < plot.r")
+    //await fs.copyFile("metrics.json", "metrics_read.json")
+    let { stdout } = await exec(`ls -1t metrics/*.json | head -1`)
+    const files = stdout.split('\n').join(' ')
+    {
+    let cmd = `jq -s . ${files} > metrics_read.json`
+    console.log(cmd)
+    let { stdout } = await exec(cmd)
+    console.log(stdout)
+    }
+    {
+    let cmd = "R --no-save --no-restore < plot_val.r"
+    console.log(cmd)
+    let { stdout } = await exec(cmd)
+    console.log(stdout)
+    }
+    const data = await fs.readFile("values.png")
+    return res.end(data, 'binary')
+  }
+  catch(err) {
+    console.dir(err);
+    return res.send(err)
+  }
+});
+
+/* Plots the full statistics but for the nGenerations last generations */
+app.get('/smallstats/:nGenerations', async (req, res) => {
+  const n = parseInt(req.params.nGenerations)
+  try {
+    //await fs.copyFile("metrics.json", "metrics_read.json")
+    let { stdout } = await exec(`ls -1t metrics/*.json | head -${n}`)
+    const files = stdout.split('\n').join(' ')
+    {
+    let cmd = `jq -s . ${files} > metrics_read.json`
+    console.log(cmd)
+    let { stdout } = await exec(cmd)
+    console.log(stdout)
+    }
+    {
+    let cmd = "R --no-save --no-restore < plot_stats.r"
+    console.log(cmd)
+    let { stdout } = await exec(cmd)
+    console.log(stdout)
+    }
+    const data = await fs.readFile("stats.png")
+    return res.end(data, 'binary')
+  }
+  catch(err) {
+    console.dir(err);
+    return res.send(err)
+  }
+});
+
+app.get('/largestats', async (req, res) => {
+  try {
+    //await fs.copyFile("metrics.json", "metrics_read.json")
+    await exec("jq -s . metrics/*.json > metric_read.json")
+    await exec("R --no-save --no-restore < plot_stats.r")
     const data = await fs.readFile("stats.png")
     return res.end(data, 'binary')
   }
@@ -170,7 +226,8 @@ async function advanceGeneration(ai) {
   const { stdout, stderr } = await exec('../bin/overmind update '
     + getModelFile(ai.name, ai.generation) + ' '
     + getExperienceFile(ai.name) + ' '
-    + modelfile)
+    + modelfile + ' '
+    + ai.generation)
 
   console.log(stdout);
 

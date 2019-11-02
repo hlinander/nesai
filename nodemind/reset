@@ -2,7 +2,7 @@
 rm ai/vinst.json
 rm models/vinst.model
 rm rollouts/*
-rm metrics.json
+rm metrics/*
 cp ai/$1.json ai/vinst.json
 cp models/$1.model models/vinst.0.model
 DEBUG=yes node nodemind.js

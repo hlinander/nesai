@@ -3,6 +3,7 @@ library(ggplot2)
 library(gridExtra)
 library(reshape2)
 library(ggridges)
+library(tictoc)
 
 plot_parameters = function(data, type, layer, color) {
 	nplots <- min(c(length(data), 15))
@@ -42,7 +43,7 @@ plot_rewards = function(data) {
 	nplots <- min(c(length(data), 15))
 	indices <- round(seq(1, length(data), length.out=nplots))
 	sdata <- data[indices]
-	rewards <- lapply(sdata, function(e) { e$reward })
+	rewards <- lapply(sdata, function(e) { e$reward[1:min(2000, length(e$reward))] })
 	crewards <- lapply(rewards, unlist)
 	df <- data.frame(do.call(cbind, crewards))
 	colnames(df) <- as.character(indices)
@@ -50,7 +51,8 @@ plot_rewards = function(data) {
 	melted <- melt(df, id.vars="id", variable.name="series")
 	# res <- ggplot(melted, aes(x=id, y=rep(0, nrow(melted)), height=value, group=series)) + geom_ridgeline()
 	# res <- ggplot(melted, aes(x=id, y=series, height=value)) + geom_density_ridges(stat="identity", scale=1)
-	res <- ggplot(melted, aes(x=id, y=value, fill = value > 0)) + geom_col() + facet_grid(series~.)
+	# res <- ggplot(melted, aes(x=id, y=value, fill = value > 0)) + geom_hline(yintercept=0) + geom_smooth(span=0.1) + facet_grid(series~.)
+	res <- ggplot(melted, aes(x=id, y=value, colour = value > 0)) + geom_hline(yintercept=0) + geom_point() + facet_grid(series~.)
 	return(res)
 }
 
@@ -72,6 +74,7 @@ plot_rollout_lengths = function(data) {
 plot_actions = function(data) {
 	last <- tail(data, n=1)[[1]]
 	actions <- last$actions
+	actions <- actions[1:min(500, length(actions))]
 	df <- data.frame(do.call(rbind, actions))
 	colnames(df) <- c("up", "down", "left", "right", "a", "b", "start", "select")
 	df$frame <- seq_len(nrow(df))
@@ -81,8 +84,7 @@ plot_actions = function(data) {
 	return(res + theme_minimal())
 }
 
-plot_all = function() {
-	data <- fromJSON(file="metrics_read.json")
+plot_all = function(data) {
 	w1 <- plot_parameters(data, 'parameters', 'fc1.weight', 'gray')
 	w2 <- plot_parameters(data, 'parameters', 'fc2.weight', 'gray')
 	w3 <- plot_parameters(data, 'parameters', 'fc3.weight', 'gray')
@@ -105,12 +107,52 @@ plot_all = function() {
 				 c(7,8,9,10,11,12),
 				 c(13, 13, 14, 14, 14, 15),
 				 c(16, 16, 16, 16, 16, 16))
+    # tic('w1')
+	# print(w1)
+	# toc()
+    # tic('mr')
+	# print(mr)
+	# toc()
+    # tic('rewards')
+	# print(rewards)
+	# toc()
+    # tic('lengths')
+	# print(lengths)
+	# toc()
+    # tic('actions')
+	# print(actions)
+	# toc()
 	plot <- grid.arrange(w1,w2,w3, b1,b2,b3,dw1,dw2,dw3, db1,db2,db3,mr,rewards, lengths, actions, nrow=3, layout_matrix=lay)
+	#print(plot)
 	# plot <- grid.arrange(w1,w2,w3, b1,b2,b3,dw1,dw2,dw3, db1,db2,db3,mr,rewards, lengths, nrow=3, layout_matrix=lay)
 	ggsave("stats.png", plot=plot, device="png", width=30, height=20)
 }
 
-plot_all()
+plot_all_epochs <- function() {
+	data <- fromJSON(file="metrics_read.json")
+	plot_all(data)
+}
+
+# plot_all_epochs()
+
+plot_value_vs_reward <- function(data) {
+	sdata <- data[[1]]
+	rewards <- sdata$reward[1:min(2000, length(sdata$reward))]
+	values <- sdata$values[1:min(2000, length(sdata$values))]
+	crewards <- unlist(rewards)
+	cvalues <- unlist(values)
+	df <- data.frame(values=cvalues, rewards=crewards)
+	df$id = seq_len(nrow(df))
+	melted <- melt(df, id.vars="id", variable.name="series")
+	res <- ggplot(melted, aes(x=id, y=value, color=series)) + geom_point()
+	return(res)
+}
+
+plot_vr <- function() {
+	data <- fromJSON(file="metrics_read.json")
+	p <- plot_value_vs_reward(data)
+	ggsave("values.png", plot=p, device="png", width=20, height=5)
+}
 
 #print(plot_parameters(json_data))
 #print(plot_rewards(json_data))
