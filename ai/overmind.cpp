@@ -29,7 +29,7 @@ static int get_ppo_epochs()
 	return 3;
 }
 
-const float LR = 0.0001;//0.00000001;
+const float LR = 0.001;//0.00000001;
 static int BATCH_SIZE = get_batch_size();
 const int PPO_EPOCHS = get_ppo_epochs();
 const bool DEBUG = nullptr != getenv("DEBUG");
@@ -82,7 +82,7 @@ Reward calculate_rewards(Model &experience) {
             debug_log << "f " << frame << ": " << experience.immidiate_rewards[frame] << ", ";
         }
 		reward += experience.immidiate_rewards[frame];
-		reward *= 0.99;
+		reward *= 0.80;
 		ret.rewards[frame] = reward;
 	}
 	ret.total_reward = std::accumulate(ret.rewards.begin(), ret.rewards.end(), 0.0f);
@@ -157,6 +157,7 @@ float update_model(Model &m, Model &experience, stat_map &stats, const float avg
         if(actual_bs == 1) {
             break;
         }
+        std::cout << "BS " << actual_bs << std::endl;
         // auto thresh = (ACTION_THRESHOLD * torch::ones({(long)actual_bs, ACTION_SIZE})).to(m.net->device);
         auto v = m.value_net->forward(experience.get_batch(frame, frame + actual_bs));
 		auto logp = m.forward_batch_nice(experience.get_batch(frame, frame + actual_bs));
@@ -189,7 +190,7 @@ float update_model(Model &m, Model &experience, stat_map &stats, const float avg
         */
 		auto trewards = torch::from_blob(static_cast<void*>(rewards_batch.data()), {(long)actual_bs, 1}, torch::kFloat32);
         auto trewards_gpu = trewards.to(m.net->device);
-        auto trewards_minus_V = trewards_gpu - v;
+        auto trewards_minus_V = trewards_gpu - torch::clamp(v, 0.0f, 10000.0f);
 		auto torch_actions = torch::from_blob(static_cast<void*>(action_batch.data()), {(long)actual_bs, ACTION_SIZE}, torch::kFloat32);
         auto gpu_actions = torch_actions.to(m.net->device);
 
@@ -364,6 +365,9 @@ int main(int argc, const char *argv[])
             values.resize(experiences[0].get_frames());
             for (int frame = 0; frame < experiences[0].get_frames(); frame+=BATCH_SIZE) {
                 size_t actual_bs = std::min(BATCH_SIZE, experiences[0].get_frames() - frame);
+                if(actual_bs == 1) {
+                    break;
+                }
                 auto v = m.value_net->forward(experiences[0].get_batch(frame, frame + actual_bs)).to(torch::kCPU);
                 std::copy(v.data<float>(), v.data<float>() + actual_bs, values.begin() + frame);
             }

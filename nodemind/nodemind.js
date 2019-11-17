@@ -24,6 +24,7 @@ app.use(bodyParser.raw({
 }))
 app.use(bodyParser.urlencoded({limit: '5000mb', extended: true}));
 app.set('view engine', 'pug')
+app.use(express.static('gifs'))
 
 function getModelFile(name, generation) {
   return 'models/' + name + '.' + generation + '.model'
@@ -231,6 +232,7 @@ async function generateGif(ai) {
   // return res.end(data, 'binary')
 }
 
+
 app.get('/job/:name', (req, res) => {
   const ai = ais[req.params.name]
   if(!ai) return res.sendStatus(500)
@@ -264,7 +266,7 @@ async function advanceGeneration(ai) {
       fs.unlink('rollouts/' + files[i]);
     }
   }
-  await generateGif(ai);
+  generateGif(ai);
   // Set new model as active
   delete models[ai.name]
   const data = await fs.readFile(modelfile)
@@ -327,6 +329,10 @@ async function initialize() {
     }
   }
 }
+
+app.get('/gifz', async (req, res) => {
+  res.render('gifz', { gifs: await fs.readdir('gifs') })
+})
 
 app.get('/', async (req, res) => {
   res.render('index', { title: 'Hey', message: 'Hello there!' })

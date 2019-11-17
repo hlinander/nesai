@@ -48,6 +48,7 @@ function brain_get_reward(frame)
 	local page = read_cpu(0x71A)
 	local screenx = read_cpu(0x71c)
 	local relx = read_cpu(0x3ad)
+	local speedx = read_int_cpu(0x57) / 0x28
 
 	local absolute_x = page * 0x100 + screenx + relx
 	local xscore = ((page - old_page) * 0x100) + (screenx - old_screenx) + (relx - old_relx)
@@ -77,7 +78,7 @@ function brain_get_reward(frame)
 	end
 
 	if old_lives ~= lives then
-		reward = reward - 1000
+		reward = reward - 10
 		if 0 == lives then
 			is_dead = true
 		end
@@ -92,8 +93,8 @@ function brain_get_reward(frame)
 	old_screenx = screenx
 	old_relx = relx
 	old_level = level
-
-	return reward
+	-- print(speedx)
+	return reward + speedx * 2
 end
 
 

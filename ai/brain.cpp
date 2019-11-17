@@ -63,6 +63,18 @@ static int brain_lua_readcpu(lua_State *L)
 	return 1;
 }
 
+static int brain_lua_readcpuint(lua_State *L)
+{
+	uint16_t addr = static_cast<uint16_t>(luaL_checknumber(L, 1));
+	if(addr >= 0x2000)
+	{
+		std::cout << "LUA: Reading invalid address" << std::hex << addr;
+		exit(1);
+	}
+	lua_pushnumber(L, static_cast<int8_t>(cpu_ram[addr & 0x7FF]));
+	return 1;
+}
+
 static int brain_lua_log(lua_State *L)
 {
 	const char *p = luaL_checkstring(L, 1);
@@ -126,6 +138,8 @@ void brain_init()
 
 		lua_pushcfunction(L, brain_lua_readcpu);
 		lua_setglobal(L, "read_cpu");
+		lua_pushcfunction(L, brain_lua_readcpuint);
+		lua_setglobal(L, "read_int_cpu");
 		lua_pushcfunction(L, brain_lua_log);
 		lua_setglobal(L, "log");
 		model.net->eval();
