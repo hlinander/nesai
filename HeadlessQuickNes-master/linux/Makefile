@@ -6,7 +6,7 @@ TARGET = ../libhqnes.so
 
 LINKFLAGS = -L ../quicknes/ -lSDL2_ttf -lquicknes -ldl `pkg-config --libs sdl2 luajit -shared`
 CXXFLAGS = -std=c++11 -I ../quicknes -O3 -Wno-multichar -fno-exceptions -fpermissive -fPIC \
-		   `pkg-config --cflags sdl2 luajit`
+		   `pkg-config --cflags sdl2 luajit` -g -ggdb
 
 SOURCES = \
 	../src/hqn.cpp \
@@ -28,7 +28,7 @@ TARGET = ../hqn_quicknes
 
 LINKFLAGS = -L ../quicknes/ -lSDL2_ttf -llua5.3 -lcuda -ltorch -lc10 -lquicknes -ldl `pkg-config --libs sdl2`
 
-CXXFLAGS = -std=c++11 -I ../quicknes -O3 -Wno-multichar -fpermissive -fPIC \
+CXXFLAGS = -std=c++11 -I ../quicknes -O3 -g -ggdb -Wno-multichar -fpermissive -fPIC \
 		   `pkg-config --cflags sdl2`
 
 CXXFLAGS += -I../../ai

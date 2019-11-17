@@ -1,7 +1,7 @@
 
 TARGET_DYNAMIC = ../libquicknes.so
 TARGET_STATIC = ../libquicknes.a
-CXXFLAGS = -Wall -DDISABLE_AUTO_FILE -D__LIBRETRO__ -DNDEBUG -I.. -O3 -Wno-multichar -fno-exceptions -fomit-frame-pointer -fPIC
+CXXFLAGS = -Wall -DDISABLE_AUTO_FILE -D__LIBRETRO__ -DNDEBUG -I.. -O3 -Wno-multichar -fno-exceptions -fomit-frame-pointer -fPIC -g -ggdb
 
 SRCS = \
 	../nes_emu/abstract_file.cpp \

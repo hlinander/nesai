@@ -3,7 +3,7 @@ mkdir -p bin
 
 # Brian as a Library
 (cd ai && \
-	make $@ clean all && \
+	make $@ && \
 	cp libbrain.so ../bin && \
 	cp overmind ../bin && \
 	cp brain.lua ../bin)

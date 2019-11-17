@@ -22,6 +22,8 @@ static bool is_human = false;
 static const char *gif = nullptr;
 static GifWriter g;
 
+static int frame = 0;
+
 #define GET_GUI() hqn::GUIController *gui = static_cast<hqn::GUIController*>(hqn_state.getListener())
 
 static void ngui_setscale(int scale = 1)
@@ -154,14 +156,20 @@ static int run_brain()
 		{
 		}
 
-		if(gif)
-		{
-			hqn_state.blit(frame_pixels, HQNState::NES_VIDEO_PALETTE, 0, 0, 0, 0);
-			GifWriteFrame(&g, reinterpret_cast<uint8_t *>(frame_pixels), 256, 240, 100);
-		}
-
 		njoypad_set(0, bits);
 		nemu_frameadvance();
+		frame++;
+		if(gif && !(frame&0xf))
+		{
+			hqn_state.blit(frame_pixels, HQNState::NES_VIDEO_PALETTE, 0, 0, 0, 0);
+			for(int i = 0; i < 256*240; ++i) {
+				auto r = frame_pixels[i] >> 16 & 0xff;
+				auto g = frame_pixels[i] >> 8 & 0xff;
+				auto b = frame_pixels[i] & 0xff;
+				frame_pixels[i] = 0xff000000 | (b << 16) | (g << 8) | (r);
+			}
+			GifWriteFrame(&g, reinterpret_cast<uint8_t *>(frame_pixels), 256, 240, 1);
+		}
 	}
 	return 0;
 }
@@ -202,7 +210,7 @@ int main(int argc, const char *argv[])
 
 	if(gif)
 	{
-		GifBegin(&g, gif, 256, 240, 100);
+		GifBegin(&g, gif, 256, 240, 1);
 	}
 
 	const char * const human = getenv("HUMAN");

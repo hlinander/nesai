@@ -25,6 +25,7 @@ static uint32_t fps = 0;
 static uint64_t next_fps = 0;
 static uint32_t frame = 0;
 static const char* name = "noname";
+static const char * expfile = nullptr;
 
 static lua_State *L = nullptr;
 
@@ -97,9 +98,9 @@ void brain_init()
 		else
 		{
 			std::cout << "WARNING!! Running without name" << std::endl;
-			name = "noname";
 		}
 
+		expfile = getenv("EXPFILE");
 		const char *ro = getenv("ROLLOUTS");
 		if(nullptr != ro)
 		{
@@ -258,8 +259,21 @@ bool brain_on_frame()
 		// Last frame
 		//
 		std::cout << "I am done!" << std::endl;
-		std::string out{name};
-		out.append(".experience");
+		std::string out;
+		if(expfile)
+		{
+			out = expfile;
+		}
+		else
+		{
+			out = name;
+			out.append(".experience");
+		}
+		if(out.empty())
+		{
+			std::cout << "NOT SAVING EXP" << std::endl;
+			return false;
+		}
 		model.save_file(out);
 		std::cout << "I should exit now..." << std::endl;
 		return false;

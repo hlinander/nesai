@@ -208,6 +208,29 @@ function pendingJobs(name) {
   return pending
 }
 
+async function generateGif(ai) {
+  const modelFile = getModelFile(ai.name, ai.generation);
+  const cmd = '../bin/hqn_quicknes ' + 'roms/' + ai.rom;
+  const gif = 'gifs/' + ai.name + "_" + ai.generation + '.gif';
+  let env = {
+    'HUMAN': '0',
+    'MODEL': modelFile,
+    'BE': 'scripts/' + ai.script,
+    'ROLLOUTS': "1",
+    'HL': "1",
+    'FPS': "0",
+    'EXPFILE': "",
+    'GIF': gif
+  }
+  env = Object.assign(env, process.env);
+  // console.dir(env)
+  const { stdout, stderr } = await exec(cmd, {env: env});
+  console.log(stdout)
+  // console.log(stderr)
+  // const data = await fs.readFile(gif);
+  // return res.end(data, 'binary')
+}
+
 app.get('/job/:name', (req, res) => {
   const ai = ais[req.params.name]
   if(!ai) return res.sendStatus(500)
@@ -241,7 +264,7 @@ async function advanceGeneration(ai) {
       fs.unlink('rollouts/' + files[i]);
     }
   }
-
+  await generateGif(ai);
   // Set new model as active
   delete models[ai.name]
   const data = await fs.readFile(modelfile)
@@ -273,7 +296,7 @@ app.post('/result/:job_id', async (req, res) => {
 
 
 async function initialize() {
-  const dirs = [ 'roms', 'scripts', 'ai', 'models', 'rollouts' ]
+  const dirs = [ 'roms', 'scripts', 'ai', 'models', 'rollouts', 'gifs']
   for(d of dirs) {
     try { await fs.mkdir(d) } catch(e) {}
   }

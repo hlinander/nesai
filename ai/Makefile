@@ -13,13 +13,9 @@ else
 	CPPFLAGS += -Wno-deprecated-declarations
 endif
 
-PHONY: clean
-PHONY: all
+.PHONY: all clean
 
 all: overmind libbrain.so
-
-clean:
-	rm -fr overmind libbrain.so *.o *.so
 
 overmind: overmind.o
 	g++ $< $(LIBS) -o $@
@@ -33,3 +29,5 @@ overmind.o: Makefile overmind.cpp model.h brain.h bm.h
 brain.o: Makefile brain.cpp model.h brain.h bm.h
 	g++ brain.cpp $(INCLUDES) $(CPPFLAGS) -c
 
+clean:
+	rm -fr overmind libbrain.so *.o *.so
