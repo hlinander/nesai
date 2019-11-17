@@ -1,6 +1,8 @@
 #include "hqn.h"
 #include "hqn_gui_controller.h"
 
+#include "gif.h"
+
 #include <brain.h>
 
 #include <string>
@@ -16,6 +18,9 @@ using namespace hqn;
 static HQNState hqn_state;
 
 static bool is_human = false;
+
+static const char *gif = nullptr;
+static GifWriter g;
 
 #define GET_GUI() hqn::GUIController *gui = static_cast<hqn::GUIController*>(hqn_state.getListener())
 
@@ -96,6 +101,8 @@ struct gamepad_binding
 	uint8_t bit;
 };
 
+static int32_t frame_pixels[256 * 240];
+
 static int run_brain()
 {
 	gamepad_binding bindings[] = 
@@ -147,6 +154,12 @@ static int run_brain()
 		{
 		}
 
+		if(gif)
+		{
+			hqn_state.blit(frame_pixels, HQNState::NES_VIDEO_PALETTE, 0, 0, 0, 0);
+			GifWriteFrame(&g, reinterpret_cast<uint8_t *>(frame_pixels), 256, 240, 100);
+		}
+
 		njoypad_set(0, bits);
 		nemu_frameadvance();
 	}
@@ -183,6 +196,13 @@ int main(int argc, const char *argv[])
 	{
 		std::cout << "Usage: " << argv[0] << " <rom>" << std::endl;
 		return 1;
+	}
+
+	gif = getenv("GIF");
+
+	if(gif)
+	{
+		GifBegin(&g, gif, 256, 240, 100);
 	}
 
 	const char * const human = getenv("HUMAN");
@@ -233,6 +253,11 @@ int main(int argc, const char *argv[])
 		}
 
 		nemu_hard_reset();
+	}
+
+	if(gif)
+	{
+		GifEnd(&g);
 	}
 
 	return 0;
