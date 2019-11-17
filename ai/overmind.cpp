@@ -154,6 +154,9 @@ float update_model(Model &m, Model &experience, stat_map &stats, const float avg
 	for (int frame = 0; frame < experience.get_frames(); frame+=BATCH_SIZE) {
 		// std::cout << "Frame: " << frame << ", Batchsize: " << actual_bs << std::endl;
 		size_t actual_bs = std::min(BATCH_SIZE, experience.get_frames() - frame);
+        if(actual_bs == 1) {
+            break;
+        }
         // auto thresh = (ACTION_THRESHOLD * torch::ones({(long)actual_bs, ACTION_SIZE})).to(m.net->device);
         auto v = m.value_net->forward(experience.get_batch(frame, frame + actual_bs));
 		auto logp = m.forward_batch_nice(experience.get_batch(frame, frame + actual_bs));
