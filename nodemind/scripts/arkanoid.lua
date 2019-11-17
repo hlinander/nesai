@@ -53,7 +53,12 @@ function brain_get_reward(frame)
 	local d1 = read_cpu(0x375)
 	local score = d6 * 100000 + d5 * 10000 + d4 * 1000 + d3 * 100 + d2 * 10 + d1
 
-	local reward = (score - old_score) 
+	-- local reward = (score - old_score) 
+    local paddle = read_cpu(0x11c) / 170.0
+    local ball = read_cpu(0x10d) / 10.0
+    -- local reward = (score - old_score) - math.abs(ball - paddle) * 50
+    local reward = -math.abs(ball - paddle) * 50
+
 	old_score = score
 	return reward 
 end

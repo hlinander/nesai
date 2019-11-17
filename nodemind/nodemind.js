@@ -119,7 +119,7 @@ app.get('/smallstats/:nGenerations', async (req, res) => {
 app.get('/largestats', async (req, res) => {
   try {
     //await fs.copyFile("metrics.json", "metrics_read.json")
-    await exec("jq -s . metrics/*.json > metric_read.json")
+    await exec("jq -s . metrics/*.json > metrics_read.json")
     await exec("R --no-save --no-restore < plot_stats.r")
     const data = await fs.readFile("stats.png")
     return res.end(data, 'binary')

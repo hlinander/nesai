@@ -37,7 +37,8 @@ typedef std::array<uint8_t, ACTION_SIZE> ActionType;
 template <int N_OUTPUT>
 struct Net : torch::nn::Module {
 	Net() : device(get_device()) {
-		// bn = register_module("bn", torch::nn::BatchNorm(STATE_SIZE));
+		bn1 = register_module("bn1", torch::nn::BatchNorm(N_HIDDEN));
+		bn2 = register_module("bn2", torch::nn::BatchNorm(N_HIDDEN));
 		fc1 = register_module("fc1", torch::nn::Linear(STATE_SIZE, N_HIDDEN));
 		fc2 = register_module("fc2", torch::nn::Linear(N_HIDDEN, N_HIDDEN));
 		fc3 = register_module("fc3", torch::nn::Linear(N_HIDDEN, N_OUTPUT));
@@ -66,8 +67,8 @@ struct Net : torch::nn::Module {
 	}
 
 	torch::Tensor forward(torch::Tensor x) {
-		x = torch::leaky_relu(fc1->forward(x));
-		x = torch::leaky_relu(fc2->forward(x));
+		x = bn1->forward(torch::leaky_relu(fc1->forward(x)));
+		x = bn2->forward(torch::leaky_relu(fc2->forward(x)));
 		x = fc3->forward(x);
 		return x;
 	}
@@ -81,7 +82,8 @@ struct Net : torch::nn::Module {
 		return false;
 	}
 
-	// torch::nn::BatchNorm bn{nullptr};
+	torch::nn::BatchNorm bn1{nullptr};
+	torch::nn::BatchNorm bn2{nullptr};
 	torch::nn::Linear fc1{nullptr}, fc2{nullptr}, fc3{nullptr};
 	torch::Device device;
 };

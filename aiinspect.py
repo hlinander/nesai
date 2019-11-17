@@ -35,6 +35,8 @@ while True:
 
 	env = os.environ.copy()
 	env['MODEL'] = model_path
+	env['HUMAN'] = "0"
+	env['HL'] = "0"
 	env['BE'] = script_path
 	env['ROLLOUTS'] = "1"
 	p = subprocess.Popen(['./hqn_quicknes', rom_path], cwd='bin/', stdout=None, env=env)

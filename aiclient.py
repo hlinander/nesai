@@ -98,7 +98,7 @@ def results_thread():
 			upload('/result/%s' % (r['job_id']), open(r['result_file'], 'rb').read())
 			os.unlink(r['result_file'])
 			print('Successfully uploaded job: %s (%d bytes)' % (r['job_id'], r['size']))
-		except e as Exception:
+		except Exception as e:
 			print('### RESULT_THREAD EXCEPTION: %s' % (e))
 		mutex.acquire()
 		result_size -= r['size']

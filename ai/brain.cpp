@@ -127,6 +127,7 @@ void brain_init()
 		lua_setglobal(L, "read_cpu");
 		lua_pushcfunction(L, brain_lua_log);
 		lua_setglobal(L, "log");
+		model.net->eval();
 	}
 
 	headless = bool_env("HL");
