@@ -5,6 +5,9 @@ local old_screenx
 local old_relx
 local last_absolute_x
 local idle_frames
+local next_save_frame
+local old_pstate
+local nloads
 
 local is_dead
 local last_input
@@ -19,11 +22,18 @@ function brain_begin_rollout()
 	is_dead = false
 	last_input = 0
 	idle_frames = 0
+	next_save_frame = 0
+	old_pstate = 0
+	nloads = 0
 end
 
 function brain_validate_frame(frame)
 	if is_dead then
 		return false
+	end
+	if next_save_frame > 100 then
+		save_state()
+		next_save_frame = 0
 	end
 	return frame < 10000
 end
@@ -44,6 +54,7 @@ function brain_get_reward(frame)
 		old_lives = lives
 	end
 
+	local pstate = read_cpu(0xE)
 	local level = read_cpu(0x760)
 	local page = read_cpu(0x71A)
 	local screenx = read_cpu(0x71c)
@@ -53,6 +64,10 @@ function brain_get_reward(frame)
 	local absolute_x = page * 0x100 + screenx + relx
 	local xscore = ((page - old_page) * 0x100) + (screenx - old_screenx) + (relx - old_relx)
 	local reward = 0
+
+	if screenx - old_screenx > 0 then
+		next_save_frame = next_save_frame + 1
+    end
 
 	if 1 == read_cpu(0x770) and 3 == read_cpu(0x772) then
 		reward = xscore + (math.abs(old_level - level) * 1000)
@@ -65,7 +80,15 @@ function brain_get_reward(frame)
 			if idle_frames > 120 then
 				reward = reward - 1
 				if idle_frames > 180 then
-					is_dead = true
+					-- is_dead = true
+					if nloads < 5 then
+						load_state()
+						nloads = nloads + 1
+					else
+						is_dead = true
+					end
+					reward = reward - 100
+					next_save_frame = 0
 				end
 			end
 		else
@@ -77,13 +100,27 @@ function brain_get_reward(frame)
 		idle_frames = 0
 	end
 
-	if old_lives ~= lives then
-		reward = reward - 10
-		if 0 == lives then
+	if old_pstate ~= pstate and pstate == 0xb then
+		if nloads < 5 then
+			load_state()
+			nloads = nloads + 1
+		else
 			is_dead = true
 		end
-		old_lives = lives
+		reward = reward - 100
+		next_save_frame = 0
 	end
+	old_pstate = pstate
+
+	-- if old_lives ~= lives then
+	-- 	print("is dead")
+	-- 	load_state()
+	-- 	reward = reward - 100
+	-- 	if 0 == lives then
+	-- 		is_dead = true
+	-- 	end
+	-- 	old_lives = lives
+	-- end
 
 	-- if 0 ~= reward then
 	-- 	print(reward)

@@ -105,6 +105,28 @@ struct gamepad_binding
 
 static int32_t frame_pixels[256 * 240];
 
+static void *state_data = nullptr;
+static size_t state_size = 0;
+
+void load_state() {
+	hqn_state.loadState(state_data, state_size);
+}
+
+void save_state() {
+	size_t size_out;
+	size_t new_size;
+	hqn_state.saveStateSize(&new_size);
+	if(new_size > state_size)
+	{
+		if(state_data != nullptr) {
+			free(state_data);
+		}
+		state_data = malloc(new_size);
+		state_size = new_size;
+	}
+	hqn_state.saveState(state_data, state_size, &size_out);
+}
+
 static int run_brain()
 {
 	gamepad_binding bindings[] = 

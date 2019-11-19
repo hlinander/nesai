@@ -140,9 +140,9 @@ float update_model(Model &m, Model &experience, stat_map &stats, const float avg
 	torch::Tensor loss = torch::tensor({0.0f});
 	Reward reward = calculate_rewards(experience);
 
-	for (int frame = experience.get_frames() - 1; frame >= 1; --frame) {
-		stats[action_name(experience.actions[frame])]++;
-	}
+	// for (int frame = experience.get_frames() - 1; frame >= 1; --frame) {
+	// 	stats[action_name(experience.actions[frame])]++;
+	// }
 
 	// std::cout << "Frames: " << experience.get_frames() << ", Batchsize: " << BATCH_SIZE << std::endl;
 
@@ -157,7 +157,6 @@ float update_model(Model &m, Model &experience, stat_map &stats, const float avg
         if(actual_bs == 1) {
             break;
         }
-        std::cout << "BS " << actual_bs << std::endl;
         // auto thresh = (ACTION_THRESHOLD * torch::ones({(long)actual_bs, ACTION_SIZE})).to(m.net->device);
         auto v = m.value_net->forward(experience.get_batch(frame, frame + actual_bs));
 		auto logp = m.forward_batch_nice(experience.get_batch(frame, frame + actual_bs));
@@ -204,7 +203,7 @@ float update_model(Model &m, Model &experience, stat_map &stats, const float avg
 		// auto masked_r = torch::exp(p - old_p);
         auto r = prod_pi / torch::clamp(prod_old_pi, 0.0001f, 1.0f);
 		auto lloss = torch::min(r * trewards_gpu, torch::clamp(r, 1.0 - 0.2, 1.0 + 0.2) * trewards_gpu);
-		auto sloss = lloss.sum();
+		auto sloss = lloss.mean();
 
 		(-sloss).backward();
 

@@ -29,6 +29,9 @@ static const char * expfile = nullptr;
 
 static lua_State *L = nullptr;
 
+void save_state();
+void load_state();
+
 static bool bool_env(const char *env)
 {
 	const char * const s = getenv(env);
@@ -72,6 +75,18 @@ static int brain_lua_readcpuint(lua_State *L)
 		exit(1);
 	}
 	lua_pushnumber(L, static_cast<int8_t>(cpu_ram[addr & 0x7FF]));
+	return 1;
+}
+
+static int brain_lua_load_state(lua_State *L)
+{
+	load_state();
+	return 1;
+}
+
+static int brain_lua_save_state(lua_State *L)
+{
+	save_state();
 	return 1;
 }
 
@@ -142,6 +157,10 @@ void brain_init()
 		lua_setglobal(L, "read_int_cpu");
 		lua_pushcfunction(L, brain_lua_log);
 		lua_setglobal(L, "log");
+		lua_pushcfunction(L, brain_lua_load_state);
+		lua_setglobal(L, "load_state");
+		lua_pushcfunction(L, brain_lua_save_state);
+		lua_setglobal(L, "save_state");
 		model.net->eval();
 	}
 
@@ -296,7 +315,8 @@ bool brain_on_frame()
 
 	StateType s;
 	for(size_t i = 0; i < STATE_SIZE; ++i) {
-		s[i] = static_cast<float>(cpu_ram[i]) / 255.0;
+		s[i] = static_cast<float>(cpu_ram[i]) / 255.0 - 0.5f;
+		// s[i] = 0.0f;//static_cast<float>(cpu_ram[i]) / 255.0;
 	}
 	ActionType a = model.get_action(s);
 	model.record_action(s, a, reward);

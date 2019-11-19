@@ -1,6 +1,6 @@
 INCLUDES  = -I/usr/include/torch/csrc/api/include
 INCLUDES += -Icereal-1.2.2/include
-CPPFLAGS  = -std=c++17 -O3 -Wall -fPIC -g -ggdb 
+CPPFLAGS  = -std=c++17 -O0 -Wall -fPIC -g -ggdb 
 LIBS = -llua5.3 -lcuda -ltorch -lc10 -lstdc++fs
 
 ifeq ($(hampus), off)

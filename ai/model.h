@@ -179,6 +179,7 @@ struct Model {
 
 	torch::Tensor get_batch(size_t first, size_t last) {
 		auto ret = torch::from_blob(static_cast<void *>(states.data() + first), {static_cast<long>(last - first), STATE_SIZE}, torch::kFloat32);
+		// std::cout << "state mean " << ret.mean() << std::endl;
 		auto dret = ret.to(net->device);
 		return dret;
 	}
