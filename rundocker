@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
+
+gpu_param=""
+
+if [ -z "$nogpu" ]; then
+	gpu_param="--gpus=all"
+fi
+
 docker build docker/ -t nesai
 docker run \
-	--gpus=all \
+	$gpu_param \
 	-u $(id -u):$(id -g) \
 	--network=host \
 	-e XAUTHORITY \
