@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-nvidia-docker run \
+docker build docker/ -t nesai
+docker run \
+	--gpus=all \
 	-u $(id -u):$(id -g) \
 	--network=host \
 	-e XAUTHORITY \
@@ -14,4 +16,4 @@ nvidia-docker run \
 	-w /nesai/ \
 	--cap-add=SYS_PTRACE \
 	--security-opt seccomp=unconfined \
-	hlinander/nesai:39 /bin/bash
+	nesai /bin/bash
