@@ -16,7 +16,7 @@ static int get_batch_size()
 	{
 		return atoi(bs);
 	}
-	return 1000;
+	return 512;
 }
 
 static int get_ppo_epochs()
@@ -29,7 +29,7 @@ static int get_ppo_epochs()
 	return 3;
 }
 
-const float LR = 0.001;//0.00000001;
+const float LR = 0.0001;//0.00000001;
 static int BATCH_SIZE = get_batch_size();
 const int PPO_EPOCHS = get_ppo_epochs();
 const bool DEBUG = nullptr != getenv("DEBUG");
@@ -82,7 +82,7 @@ Reward calculate_rewards(Model &experience) {
             debug_log << "f " << frame << ": " << experience.immidiate_rewards[frame] << ", ";
         }
 		reward += experience.immidiate_rewards[frame];
-		reward *= 0.80;
+		reward *= 0.95;
 		ret.rewards[frame] = reward;
 	}
 	ret.total_reward = std::accumulate(ret.rewards.begin(), ret.rewards.end(), 0.0f);
@@ -189,7 +189,7 @@ float update_model(Model &m, Model &experience, stat_map &stats, const float avg
         */
 		auto trewards = torch::from_blob(static_cast<void*>(rewards_batch.data()), {(long)actual_bs, 1}, torch::kFloat32);
         auto trewards_gpu = trewards.to(m.net->device);
-        auto trewards_minus_V = trewards_gpu - torch::clamp(v, 0.0f, 10000.0f);
+        auto trewards_minus_V = trewards_gpu;// - torch::clamp(v, 0.0f, 10000.0f);
 		auto torch_actions = torch::from_blob(static_cast<void*>(action_batch.data()), {(long)actual_bs, ACTION_SIZE}, torch::kFloat32);
         auto gpu_actions = torch_actions.to(m.net->device);
 
@@ -298,6 +298,7 @@ int main(int argc, const char *argv[])
                         std::cout << "Missing exp: " << str << std::endl;
                         return 3;
                     }
+                    std::cout << "Loaded experience with " << experiences.back().get_frames() << " frames" << std::endl;
                 } catch(const std::exception &e) {
                     std::cout << "FIXTHISFFS:" << e.what() << std::endl;
                 }

@@ -7,7 +7,9 @@ local last_absolute_x
 local idle_frames
 local next_save_frame
 local old_pstate
+local old_score
 local nloads
+local nmaxframes
 
 local is_dead
 local last_input
@@ -24,7 +26,19 @@ function brain_begin_rollout()
 	idle_frames = 0
 	next_save_frame = 0
 	old_pstate = 0
+	old_score = 1000000 * read_cpu(0x7dd) 
+		+ 100000 * read_cpu(0x7de) 
+		+ 10000 * read_cpu(0x7df) 
+		+ 1000 * read_cpu(0x7e0)
+		+ 100 * read_cpu(0x7e1)
+		+ 10 * read_cpu(0x7e2)
 	nloads = 0
+	nmaxframes = os.getenv('MAX_FRAMES')
+	if nmaxframes == nil then
+		nmaxframes = 128
+	else
+		nmaxframes = tonumber(nmaxframes)
+	end
 end
 
 function brain_validate_frame(frame)
@@ -32,10 +46,10 @@ function brain_validate_frame(frame)
 		return false
 	end
 	if next_save_frame > 100 then
-		save_state()
+		--save_state()
 		next_save_frame = 0
 	end
-	return frame < 10000
+	return frame < nmaxframes
 end
 
 function brain_override_input(frame)
@@ -60,6 +74,13 @@ function brain_get_reward(frame)
 	local screenx = read_cpu(0x71c)
 	local relx = read_cpu(0x3ad)
 	local speedx = read_int_cpu(0x57) / 0x28
+	local mario_score = 1000000 * read_cpu(0x7dd) 
+		+ 100000 * read_cpu(0x7de) 
+		+ 10000 * read_cpu(0x7df) 
+		+ 1000 * read_cpu(0x7e0)
+		+ 100 * read_cpu(0x7e1)
+		+ 10 * read_cpu(0x7e2)
+
 
 	local absolute_x = page * 0x100 + screenx + relx
 	local xscore = ((page - old_page) * 0x100) + (screenx - old_screenx) + (relx - old_relx)
@@ -75,26 +96,32 @@ function brain_get_reward(frame)
 		-- Penalize spazzing about like a fucking retard and not moving.
 		-- Essentially, make a 10px movement every 2 seconds or lose 10 pts / frame
 		--
-		if math.abs(last_absolute_x - absolute_x) < 10 then
-			idle_frames = idle_frames + 1
-			if idle_frames > 120 then
-				reward = reward - 1
-				if idle_frames > 180 then
-					-- is_dead = true
-					if nloads < 5 then
-						load_state()
-						nloads = nloads + 1
-					else
-						is_dead = true
-					end
-					reward = reward - 100
-					next_save_frame = 0
-				end
-			end
-		else
-			idle_frames = 0
-			last_absolute_x = absolute_x
-		end
+		if (mario_score - old_score) > 0 then
+			dscore = (mario_score - old_score) / 25.0
+			print(dscore)
+			reward = reward + dscore
+			old_score = mario_score
+        end
+		-- if math.abs(last_absolute_x - absolute_x) < 10 then
+		-- 	idle_frames = idle_frames + 1
+		-- 	if idle_frames > 120 then
+		-- 		reward = reward - 1
+		-- 		if idle_frames > 180 then
+		-- 			-- is_dead = true
+		-- 			if nloads < 5 then
+		-- 				load_state()
+		-- 				nloads = nloads + 1
+		-- 			else
+		-- 				is_dead = true
+		-- 			end
+		-- 			reward = reward - 100
+		-- 			next_save_frame = 0
+		-- 		end
+		-- 	end
+		-- else
+		-- 	idle_frames = 0
+		-- 	last_absolute_x = absolute_x
+		-- end
 	else
 		last_absolute_x = absolute_x
 		idle_frames = 0

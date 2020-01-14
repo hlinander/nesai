@@ -273,7 +273,7 @@ void brain_bind_cpu_mem(const uint8_t *ram)
 	brain_begin_rollout();
 }
 
-bool brain_on_frame()
+bool brain_on_frame(float *frame_reward)
 {
 	if(!brain_enabled())
 	{
@@ -312,6 +312,7 @@ bool brain_on_frame()
 		return false;
 	}
 	float reward = get_reward(frame);
+	*frame_reward = reward;
 
 	StateType s;
 	for(size_t i = 0; i < STATE_SIZE; ++i) {
@@ -371,11 +372,11 @@ static int luajit_brain_controller_bits(lua_State *L)
 	return 1;
 }
 
-static int luajit_brain_on_frame(lua_State *L)
-{
-	lua_pushboolean(L, brain_on_frame());
-	return 1;
-}
+// static int luajit_brain_on_frame(lua_State *L)
+// {
+// 	lua_pushboolean(L, brain_on_frame());
+// 	return 1;
+// }
 
 extern "C" int luaopen_brain_luajit(lua_State *L)
 {
@@ -383,7 +384,7 @@ extern "C" int luaopen_brain_luajit(lua_State *L)
 		{ "enabled", luajit_brain_enabled },
 		{ "headless", luajit_brain_headless },
 		{ "controller_bits", luajit_brain_controller_bits },
-		{ "on_frame", luajit_brain_on_frame },
+		// { "on_frame", luajit_brain_on_frame },
 		{ nullptr, nullptr }
 	};
 	printf("start\n");

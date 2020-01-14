@@ -212,7 +212,7 @@ function pendingJobs(name) {
 async function generateGif(ai) {
   const modelFile = getModelFile(ai.name, ai.generation);
   const cmd = '../bin/hqn_quicknes ' + 'roms/' + ai.rom;
-  const gif = 'gifs/' + ai.name + "_" + ai.generation + '.gif';
+  const gif = 'gifs/' + ai.name + "_" + ("00000" + ai.generation).slice(-5) + '.gif';
   let env = {
     'HUMAN': '0',
     'MODEL': modelFile,
@@ -221,12 +221,21 @@ async function generateGif(ai) {
     'HL': "1",
     'FPS': "0",
     'EXPFILE': "",
-    'GIF': gif
+    'GIF': gif,
+    'MAX_FRAMES': 3000,
+    'RESET': true
   }
   env = Object.assign(env, process.env);
   // console.dir(env)
-  const { stdout, stderr } = await exec(cmd, {env: env});
-  console.log(stdout)
+  try {
+    const { stdout, stderr } = await exec(cmd, {env: env});
+
+    console.log(stdout)
+  }
+  catch(e)
+  {
+    console.dir(e);
+  }
   // console.log(stderr)
   // const data = await fs.readFile(gif);
   // return res.end(data, 'binary')
@@ -248,6 +257,7 @@ async function advanceGeneration(ai) {
     + getModelFile(ai.name, ai.generation) + ' '
     + getExperienceFile(ai.name) + ' '
     + modelfile)
+    try {
   const { stdout, stderr } = await exec('../bin/overmind update '
     + getModelFile(ai.name, ai.generation) + ' '
     + getExperienceFile(ai.name) + ' '
@@ -255,6 +265,11 @@ async function advanceGeneration(ai) {
     + ai.generation)
 
   console.log(stdout);
+    }
+    catch(e)
+    {
+      console.dir(e);
+    }
 
   fs.unlink(getExperienceFile(ai.name))
   console.log("going to delete files")
@@ -266,7 +281,7 @@ async function advanceGeneration(ai) {
       fs.unlink('rollouts/' + files[i]);
     }
   }
-  generateGif(ai);
+  await generateGif(ai);
   // Set new model as active
   delete models[ai.name]
   const data = await fs.readFile(modelfile)
@@ -331,7 +346,9 @@ async function initialize() {
 }
 
 app.get('/gifz', async (req, res) => {
-  res.render('gifz', { gifs: await fs.readdir('gifs') })
+  var gifs = await fs.readdir('gifs')
+  gifs.sort()
+  res.render('gifz', { gifs: gifs})
 })
 
 app.get('/', async (req, res) => {
