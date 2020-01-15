@@ -28,7 +28,6 @@ static GifWriter g;
 static std::array<uint32_t, 32*30> mini_screen;
 
 static int frame = 0;
-static uint32_t rollout = 0;
 
 #define GET_GUI() hqn::GUIController *gui = static_cast<hqn::GUIController*>(hqn_state.getListener())
 
@@ -313,9 +312,18 @@ static int run_brain()
 				}
 			}
 
+			static const char keynames[] = "<>v^SxBA";
+			std::string keyout;
+
+			for(int key = 7; key >= 0; --key)
+			{
+				keyout.push_back(keynames[bits & (1 << key)]);
+			}
+
 			total_reward += frame_reward;
-			write_string(8, 208, std::to_string(rollout), 0xFF0000FF, 1, 1);
-			write_string(8, 218, std::to_string(static_cast<int>(total_reward)), 0xFFFFFFFF, 1, 1);
+			// write_string(8, 208, std::to_string(rollout), 0xFF0000FF, 1, 1);
+			write_string(8, 218, keyout, 0xFFFFFFFF, 1, 2);
+			write_string(8 + (8*16) + 8, 218, std::to_string(static_cast<int>(total_reward)), 0xFFFF0000, 1, 2);
 			GifWriteFrame(&g, reinterpret_cast<uint8_t *>(frame_pixels), 256, 240, 1);
 		}
 	}
@@ -389,6 +397,7 @@ int main(int argc, const char *argv[])
 
 	nemu_setframerate(get_frame_rate());
 
+	uint32_t rollout = 0;
 
 	for(;;)
 	{
