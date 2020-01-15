@@ -24,6 +24,7 @@ static bool show_fps = false;
 static uint32_t fps = 0;
 static uint64_t next_fps = 0;
 static uint32_t frame = 0;
+static uint32_t save_frame = 0;
 static const char* name = "noname";
 static const char * expfile = nullptr;
 
@@ -53,6 +54,7 @@ static uint64_t get_ms()
 }
 
 static const uint8_t *cpu_ram = nullptr;
+static const uint32_t *nes_screen = nullptr;
 
 static int brain_lua_readcpu(lua_State *L)
 {
@@ -81,12 +83,14 @@ static int brain_lua_readcpuint(lua_State *L)
 static int brain_lua_load_state(lua_State *L)
 {
 	load_state();
+	frame = save_frame;
 	return 1;
 }
 
 static int brain_lua_save_state(lua_State *L)
 {
 	save_state();
+	save_frame = frame;
 	return 1;
 }
 
@@ -267,9 +271,10 @@ uint8_t brain_controller_bits()
 	return gp_bits;
 }
 
-void brain_bind_cpu_mem(const uint8_t *ram)
+void brain_bind_cpu_mem(const uint8_t *ram, const uint32_t *screen)
 {
 	cpu_ram = ram;
+	nes_screen = screen;
 	brain_begin_rollout();
 }
 
@@ -315,9 +320,13 @@ bool brain_on_frame(float *frame_reward)
 	*frame_reward = reward;
 
 	StateType s;
-	for(size_t i = 0; i < STATE_SIZE; ++i) {
+	for(size_t i = 0; i < RAM_SIZE; ++i) {
 		s[i] = static_cast<float>(cpu_ram[i]) / 255.0 - 0.5f;
-		// s[i] = 0.0f;//static_cast<float>(cpu_ram[i]) / 255.0;
+	}
+	for(size_t i = 0; i < SCREEN_PIXELS; ++i) {
+		s[i*3 + RAM_SIZE] = static_cast<float>((nes_screen[i] >> 16) & 255) / 255.0 - 0.5f;
+		s[i*3 + RAM_SIZE + 1] = static_cast<float>((nes_screen[i] >> 8) & 255) / 255.0 - 0.5f;
+		s[i*3 + RAM_SIZE + 2] = static_cast<float>((nes_screen[i]) & 255) / 255.0 - 0.5f;
 	}
 	ActionType a = model.get_action(s);
 	model.record_action(s, a, reward);

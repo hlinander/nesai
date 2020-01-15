@@ -39,3 +39,4 @@ ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/pytorch/libtorch/lib
 RUN apt install -y libsdl2-dev libsdl2-ttf-dev
 RUN apt install -y python3-pip
 RUN pip3 install mysql-connector-python requests
+RUN apt install -y jq

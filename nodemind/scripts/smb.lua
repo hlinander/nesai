@@ -35,7 +35,7 @@ function brain_begin_rollout()
 	nloads = 0
 	nmaxframes = os.getenv('MAX_FRAMES')
 	if nmaxframes == nil then
-		nmaxframes = 128
+		nmaxframes = 3000
 	else
 		nmaxframes = tonumber(nmaxframes)
 	end
@@ -91,7 +91,7 @@ function brain_get_reward(frame)
     end
 
 	if 1 == read_cpu(0x770) and 3 == read_cpu(0x772) then
-		reward = xscore + (math.abs(old_level - level) * 1000)
+		reward = xscore -- + (math.abs(old_level - level) * 1000)
 		--
 		-- Penalize spazzing about like a fucking retard and not moving.
 		-- Essentially, make a 10px movement every 2 seconds or lose 10 pts / frame
@@ -99,7 +99,7 @@ function brain_get_reward(frame)
 		if (mario_score - old_score) > 0 then
 			dscore = (mario_score - old_score) / 25.0
 			print(dscore)
-			reward = reward + dscore
+			-- reward = reward + dscore
 			old_score = mario_score
         end
 		-- if math.abs(last_absolute_x - absolute_x) < 10 then
@@ -158,7 +158,8 @@ function brain_get_reward(frame)
 	old_relx = relx
 	old_level = level
 	-- print(speedx)
-	return reward + speedx * 2
+	-- return reward + speedx * 2
+	return reward
 end
 
 
