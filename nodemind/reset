@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 rm ai/vinst.json
-rm models/vinst.model
+rm models/*
 rm rollouts/*
 rm metrics/*
 rm gifs/*
+../bin/overmind create models/$1.model
 cp ai/$1.json ai/vinst.json
 cp models/$1.model models/vinst.0.model
 DEBUG=yes node nodemind.js

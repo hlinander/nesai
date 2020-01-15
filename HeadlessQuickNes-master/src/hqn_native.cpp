@@ -223,7 +223,7 @@ static int run_brain()
 	float total_reward = 0;
 	if(!getenv("RESET")) 
 	{
-		load_state_disk();
+		// load_state_disk();
 	}
 	while(brain_on_frame(&frame_reward))
 	{
@@ -315,19 +315,26 @@ static int run_brain()
 			static const char keynames[] = "<>v^SxBA";
 			std::string keyout;
 
-			for(int key = 7; key >= 0; --key)
+			for(int key = 0; key <= 7; ++key)
 			{
-				keyout.push_back(keynames[bits & (1 << key)]);
+				if(bits & (1 << key))
+				{
+					keyout.push_back(keynames[key]);
+				}
+				else
+				{
+					keyout.push_back(' ');
+				}
 			}
 
 			total_reward += frame_reward;
 			// write_string(8, 208, std::to_string(rollout), 0xFF0000FF, 1, 1);
 			write_string(8, 218, keyout, 0xFFFFFFFF, 1, 2);
-			write_string(8 + (8*16) + 8, 218, std::to_string(static_cast<int>(total_reward)), 0xFFFF0000, 1, 2);
+			write_string(8 + (8*16) + 8, 218, std::to_string(static_cast<int>(total_reward)), 0xFF0000FF, 1, 2);
 			GifWriteFrame(&g, reinterpret_cast<uint8_t *>(frame_pixels), 256, 240, 1);
 		}
 	}
-	save_state_disk();
+	// save_state_disk();
 	return 0;
 }
 

@@ -99,7 +99,7 @@ function brain_get_reward(frame)
 		if (mario_score - old_score) > 0 then
 			dscore = (mario_score - old_score) / 25.0
 			print(dscore)
-			-- reward = reward + dscore
+			reward = reward + dscore
 			old_score = mario_score
         end
 		-- if math.abs(last_absolute_x - absolute_x) < 10 then
@@ -134,7 +134,7 @@ function brain_get_reward(frame)
 		else
 			is_dead = true
 		end
-		reward = reward - 100
+		reward = reward - 10
 		next_save_frame = 0
 	end
 	old_pstate = pstate

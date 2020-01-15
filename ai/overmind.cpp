@@ -29,7 +29,7 @@ static int get_ppo_epochs()
 	return 3;
 }
 
-const float LR = 0.0001;//0.00000001;
+const float LR = 0.001;//0.00000001;
 static int BATCH_SIZE = get_batch_size();
 const int PPO_EPOCHS = get_ppo_epochs();
 const bool DEBUG = nullptr != getenv("DEBUG");
