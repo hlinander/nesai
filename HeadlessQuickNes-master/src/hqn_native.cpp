@@ -2,6 +2,7 @@
 #include "hqn_gui_controller.h"
 
 #include "gif.h"
+#include "font.h"
 
 #include <brain.h>
 
@@ -153,6 +154,45 @@ void load_state_disk() {
 	}
 }
 
+static void write_char(int at_x, int at_y, char n, uint32_t fg, uint32_t bg = 0, int scale = 1)
+{
+	for(int y = at_y; y < (8 * scale); ++y)
+	{
+		uint8_t mask = 0x80;
+		int shift_in = scale;
+		for(int x = at_x; x < (8 * scale); ++x)
+		{
+			if(mask & font_data[n][(y - at_y) / scale])
+			{
+				if(x < 256 && y < 240)
+				{
+					frame_pixels[x + y * 256] = fg;
+				}
+			}
+			else
+			{
+				if(bg && x < 256 && y < 240)
+				{
+					frame_pixels[x + y * 256] = bg;
+				}
+			}
+			if(0 == --shift_in)
+			{
+				mask >>= 1;
+				shift_in = scale;
+			}
+		}
+	}
+}
+
+static void write_string(int at_x, int at_y, const std::string &text, uint32_t fg, uint32_t bg = 0, int scale = 1)
+{
+	for(const auto &c : text)
+	{
+		write_char(at_x++, at_y, c, fg, bg, scale);
+	}
+}
+
 static int run_brain()
 {
 	gamepad_binding bindings[] = 
@@ -176,6 +216,7 @@ static int run_brain()
 	};
 
 	float frame_reward = 0;
+	float total_reward = 0;
 	if(!getenv("RESET")) 
 	{
 		load_state_disk();
@@ -266,6 +307,9 @@ static int run_brain()
 					frame_pixels[(y + 10) * 256 + x] = static_cast<int>(mini_screen[y * 32 + x]);
 				}
 			}
+
+			total_reward += frame_reward;
+			write_string(8, 200, std::to_string(total_reward), 0xFF0000FF, 0, 2);
 			GifWriteFrame(&g, reinterpret_cast<uint8_t *>(frame_pixels), 256, 240, 1);
 		}
 	}
