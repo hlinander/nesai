@@ -28,6 +28,7 @@ static GifWriter g;
 static std::array<uint32_t, 32*30> mini_screen;
 
 static int frame = 0;
+static uint32_t rollout = 0;
 
 #define GET_GUI() hqn::GUIController *gui = static_cast<hqn::GUIController*>(hqn_state.getListener())
 
@@ -114,7 +115,10 @@ static void *state_data = nullptr;
 static size_t state_size = 0;
 
 void load_state() {
-	hqn_state.loadState(state_data, state_size);
+	if(state_data)
+	{
+		hqn_state.loadState(state_data, state_size);
+	}
 }
 
 void save_state() {
@@ -156,11 +160,11 @@ void load_state_disk() {
 
 static void write_char(int at_x, int at_y, char n, uint32_t fg, uint32_t bg = 0, int scale = 1)
 {
-	for(int y = at_y; y < (8 * scale); ++y)
+	for(int y = at_y; y < at_y + (8 * scale); ++y)
 	{
 		uint8_t mask = 0x80;
 		int shift_in = scale;
-		for(int x = at_x; x < (8 * scale); ++x)
+		for(int x = at_x; x < at_x + (8 * scale); ++x)
 		{
 			if(mask & font_data[n][(y - at_y) / scale])
 			{
@@ -189,7 +193,8 @@ static void write_string(int at_x, int at_y, const std::string &text, uint32_t f
 {
 	for(const auto &c : text)
 	{
-		write_char(at_x++, at_y, c, fg, bg, scale);
+		write_char(at_x, at_y, c, fg, bg, scale);
+		at_x += 8 * scale;
 	}
 }
 
@@ -309,7 +314,8 @@ static int run_brain()
 			}
 
 			total_reward += frame_reward;
-			write_string(8, 200, std::to_string(total_reward), 0xFF0000FF, 0, 2);
+			write_string(8, 208, std::to_string(rollout), 0xFF0000FF, 1, 1);
+			write_string(8, 218, std::to_string(static_cast<int>(total_reward)), 0xFFFFFFFF, 1, 1);
 			GifWriteFrame(&g, reinterpret_cast<uint8_t *>(frame_pixels), 256, 240, 1);
 		}
 	}
@@ -383,7 +389,6 @@ int main(int argc, const char *argv[])
 
 	nemu_setframerate(get_frame_rate());
 
-	uint32_t rollout = 0;
 
 	for(;;)
 	{

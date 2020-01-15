@@ -46,7 +46,7 @@ function brain_validate_frame(frame)
 		return false
 	end
 	if next_save_frame > 100 then
-		--save_state()
+		save_state()
 		next_save_frame = 0
 	end
 	return frame < nmaxframes
