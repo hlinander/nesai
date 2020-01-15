@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+docker build -f docker/Dockerfile.cpu docker/ -t nesaicpu
+docker run \
+	-u $(id -u):$(id -g) \
+	--network=host \
+	-e XAUTHORITY \
+	-v /tmp/.X11-unix:/tmp/.X11-unix \
+	--volume="$HOME/.Xauthority:/root/.Xauthority:rw" \
+	--env="DISPLAY" \
+	--rm -it \
+	-v $(pwd):/nesai \
+	-e HOME=/thehome \
+	-v $HOME/.bash_history:/thehome/.bash_history \
+	-w /nesai/ \
+	--cap-add=SYS_PTRACE \
+	--security-opt seccomp=unconfined \
+	nesaicpu /bin/bash

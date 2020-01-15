@@ -26,7 +26,11 @@ else
 
 TARGET = ../hqn_quicknes
 
-LINKFLAGS = -L ../quicknes/ -lSDL2_ttf -llua5.3 -lcuda -ltorch -lc10 -lquicknes -ldl `pkg-config --libs sdl2`
+LINKFLAGS = -L ../quicknes/ -lSDL2_ttf -llua5.3 -ltorch -lc10 -lquicknes -ldl `pkg-config --libs sdl2`
+
+ifneq ($(GPU),0)
+	LINKFLAGS += -lcuda
+endif
 
 CXXFLAGS = -std=c++11 -I ../quicknes -O3 -g -ggdb -Wno-multichar -fpermissive -fPIC \
 		   `pkg-config --cflags sdl2 lua5.3`

@@ -1,11 +1,15 @@
 INCLUDES  = -I/pytorch/libtorch/include
 INCLUDES += -I/pytorch/libtorch/include/torch/csrc/api/include/
 INCLUDES += -Icereal-1.2.2/include
-CPPFLAGS  = -std=c++17 -O3 -Wall -fPIC -g -ggdb 
-LIBS = -llua5.3 -lcuda -ltorch -lc10 -lstdc++fs
+CPPFLAGS  = -std=c++17 -O3 -Wall -fPIC -g -ggdb
+LIBS = -llua5.3 -ltorch -lc10 -lstdc++fs
 
 ifeq ($(hampus), off)
 	CPPFLAGS += -DNO_HAMPUS
+endif
+
+ifneq ($(GPU),0)
+	LIBS += -lcuda
 endif
 
 ifneq ($(findstring -ARCH,$(shell uname -a)),-ARCH)
