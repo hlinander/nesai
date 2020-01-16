@@ -2,6 +2,7 @@
 rm ai/vinst.json
 rm models/*
 rm rollouts/*
+rm saved_rollouts/*
 rm metrics/*
 rm gifs/*
 ../bin/overmind create models/$1.model

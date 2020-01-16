@@ -312,7 +312,7 @@ static int run_brain()
 				}
 			}
 
-			static const char keynames[] = "<>v^SxBA";
+			static const char keynames[] = "><v^SxBA";
 			std::string keyout;
 
 			for(int key = 0; key <= 7; ++key)

@@ -1,14 +1,7 @@
 #!/usr/bin/env bash
-
-gpu_param=""
-
-if [ -z "$nogpu" ]; then
-	gpu_param="--gpus=all"
-fi
-
 docker build docker/ -t nesai
 docker run \
-	$gpu_param \
+	--gpus=all \
 	-u $(id -u):$(id -g) \
 	--network=host \
 	-e XAUTHORITY \
@@ -16,7 +9,6 @@ docker run \
 	--volume="$HOME/.Xauthority:/root/.Xauthority:rw" \
 	--env="DISPLAY" \
 	-e NVIDIA_DRIVER_CAPABILITIES=all \
-	-e "TERM=xterm-256color" \
 	--rm -it \
 	-v $(pwd):/nesai \
 	-e HOME=/thehome \
@@ -24,4 +16,4 @@ docker run \
 	-w /nesai/ \
 	--cap-add=SYS_PTRACE \
 	--security-opt seccomp=unconfined \
-	nesai /bin/bash
+	nesai /bin/bash -c "./run_clients 1"

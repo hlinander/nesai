@@ -6,6 +6,8 @@
 #include "model.h"
 #include "bm.h"
 #include "json.hpp"
+#include "replay.h"
+#include "reward.h"
 
 #define DEBUG(...)
 
@@ -39,10 +41,6 @@ static std::ofstream doom_log;
 static nlohmann::json json;
 
 using stat_map = std::unordered_map<std::string, size_t>;
-struct Reward {
-	std::vector<float> rewards;
-	float total_reward;
-};
 
 void print_stats(const stat_map &s, size_t total_frames) {
 	if(total_frames) {
@@ -53,47 +51,6 @@ void print_stats(const stat_map &s, size_t total_frames) {
 	}
 }
 
-std::vector<float> normalize_rewards(std::vector<float>& rewards) {
-	std::vector<float> normalized_rewards(rewards);
-
-	double sum = std::accumulate(rewards.begin(), rewards.end(), 0.0);
-	double mean = sum / rewards.size();
-
-	double sq_sum = std::inner_product(rewards.begin(), rewards.end(), rewards.begin(), 0.0);
-	double stddev = std::sqrt(sq_sum / rewards.size() - mean * mean);
-	
-	if(stddev > 0.0f) {
-		std::transform(normalized_rewards.begin(), normalized_rewards.end(), normalized_rewards.begin(),
-					[mean, stddev](float r) -> float { return (r) / stddev; });
-	} 
-	return normalized_rewards;
-}
-
-Reward calculate_rewards(Model &experience) {
-	DEBUG("Calculating rewards\n");
-	Reward ret;
-	ret.rewards.resize(experience.get_frames());
-	std::fill(std::begin(ret.rewards), std::end(ret.rewards), 0.0f);
-	ret.total_reward = 0.0;
-	float reward = 0.0;
-    debug_log << "LUA rewards " << std::endl;
-	for (int frame = experience.get_frames() - 1; frame >= 1; --frame) {
-        if(fabs(experience.immidiate_rewards[frame]) > 0.000000001) {
-            debug_log << "f " << frame << ": " << experience.immidiate_rewards[frame] << ", ";
-        }
-		reward += experience.immidiate_rewards[frame];
-		reward *= 0.95;
-		ret.rewards[frame] = reward;
-	}
-	ret.total_reward = std::accumulate(ret.rewards.begin(), ret.rewards.end(), 0.0f);
-	ret.rewards = normalize_rewards(ret.rewards);
-    // debug_log << "normed = [";
-	// for (int frame = experience.get_frames() - 1; frame >= 1; --frame) {
-    //     debug_log << ret.rewards[frame] << ",";
-    // }
-
-	return ret;
-}
 
 static std::string action_name(const ActionType &action)
 {
@@ -189,7 +146,7 @@ float update_model(Model &m, Model &experience, stat_map &stats, const float avg
         */
 		auto trewards = torch::from_blob(static_cast<void*>(rewards_batch.data()), {(long)actual_bs, 1}, torch::kFloat32);
         auto trewards_gpu = trewards.to(m.net->device);
-        auto trewards_minus_V = trewards_gpu;// - torch::clamp(v, 0.0f, 10000.0f);
+        auto trewards_minus_V = trewards_gpu - torch::clamp(v, 0.0f, 10000.0f);
 		auto torch_actions = torch::from_blob(static_cast<void*>(action_batch.data()), {(long)actual_bs, ACTION_SIZE}, torch::kFloat32);
         auto gpu_actions = torch_actions.to(m.net->device);
 
@@ -245,7 +202,7 @@ int main(int argc, const char *argv[])
         Model m(LR);
         m.save_file(argv[2]);
     }
-    else if(0 == strcmp(argv[1], "load")) 
+    else if(0 == strcmp(argv[1], "load"))
     {
         Model m(LR);
         if(!m.load_file(argv[2]))
@@ -253,6 +210,16 @@ int main(int argc, const char *argv[])
             std::cout << "The horse has no carrot" << std::endl;
             return 1;
         }
+    }
+    else if(0 == strcmp(argv[1], "replay"))
+    {
+        Model m(LR);
+        if(!m.load_file(argv[2]))
+        {
+            std::cout << "The horse has no carrot" << std::endl;
+            return 1;
+        }
+        replay(m);
     }
     else if(0 == strcmp(argv[1], "update_stdin"))
     {

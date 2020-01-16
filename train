@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+./build_gpu
+tmux \
+	new-session  './runserver' \; \
+	split-window './runclients' \;

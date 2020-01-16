@@ -275,10 +275,19 @@ async function advanceGeneration(ai) {
   console.log("going to delete files")
   files = await fs.readdir('./rollouts/');
   const rx = new RegExp('^' + ai.name + '\\.\\d+$')
+  var saved = false;
   for(let i = 0; i < files.length; ++i) {
     console.log(files[i]);
     if(files[i].match(rx)) {
-      fs.unlink('rollouts/' + files[i]);
+      if(!saved)
+      {
+        fs.rename('rollouts/' + files[i], 'saved_rollouts/' + files[i]);
+        saved = true;
+      }
+      else
+      {
+        fs.unlink('rollouts/' + files[i]);
+      }
     }
   }
   await generateGif(ai);
@@ -313,7 +322,7 @@ app.post('/result/:job_id', async (req, res) => {
 
 
 async function initialize() {
-  const dirs = [ 'roms', 'scripts', 'ai', 'models', 'rollouts', 'gifs']
+  const dirs = [ 'roms', 'scripts', 'ai', 'models', 'rollouts', 'gifs', 'saved_rollouts']
   for(d of dirs) {
     try { await fs.mkdir(d) } catch(e) {}
   }
