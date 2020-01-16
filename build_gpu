@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+
+gpu_param=""
+
+if [ -z "$nogpu" ]; then
+	gpu_param="--gpus=all"
+fi
+
+docker build docker/ -t nesai
+docker run \
+	$gpu_param \
+	-u $(id -u):$(id -g) \
+	--network=host \
+	-e XAUTHORITY \
+	-v /tmp/.X11-unix:/tmp/.X11-unix \
+	--volume="$HOME/.Xauthority:/root/.Xauthority:rw" \
+	--env="DISPLAY" \
+	-e NVIDIA_DRIVER_CAPABILITIES=all \
+	--rm -it \
+	-v $(pwd):/nesai \
+	-e HOME=/thehome \
+	-v $HOME/.bash_history:/thehome/.bash_history \
+	-w /nesai/ \
+	--cap-add=SYS_PTRACE \
+	--security-opt seccomp=unconfined \
+	nesai /bin/bash -c "./build_quicknes"
