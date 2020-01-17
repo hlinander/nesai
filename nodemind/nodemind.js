@@ -46,7 +46,7 @@ function createJob(ai) {
   job_id += 1
   jobs[job_id] = {
     ai,
-    expires: new Date((new Date()).getTime() + (ai.rollouts * 10000)).getTime() // aids.
+    expires: new Date((new Date()).getTime() + (ai.rollouts * 100000)).getTime() // aids.
   }
   return {
     job_id,
