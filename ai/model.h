@@ -136,9 +136,9 @@ struct Model {
 			Benchmark s("Serialization");
 			save(ar);
 		}
-		std::ofstream out(filename, std::ios_base::binary);
 		{
 			Benchmark f("Flush");
+			std::ofstream out(filename, std::ios_base::binary);
 			auto serial{ ss.str() };
 			out.write(serial.c_str(), serial.length());
 		}
