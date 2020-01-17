@@ -28,5 +28,6 @@ $DOCKER_COMMAND run \
 	-w /nesai/ \
 	--cap-add=SYS_PTRACE \
 	--security-opt seccomp=unconfined \
+    --tmpfs /nesai/nodemind/rollouts:rw,uid=$(id -u),gid=$(id -g),mode=1777 \
 	$1 bash -c "$2"
 }
