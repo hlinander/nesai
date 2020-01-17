@@ -25,6 +25,9 @@ if len(sys.argv) < 3:
 	print('Usage: <ai name> <client name>')
 	sys.exit(1)
 
+def is_local():
+	return (server[:len('http://localhost:')] == 'http://localhost:') or (server[:len('http://127.0.0.1:')] == 'http://127.0.0.1:')
+
 def get(path):
 	global server
 	return requests.get('%s%s' % (server, path))
@@ -32,14 +35,23 @@ def get(path):
 def download(path):
 	r = get(path)
 	if 200 != r.status_code:
-		raise Exception('Unable to download: %s' % (path))
+		raise Exception('Unable to download: %s (code: %d)' % (path, r.status_code))
 	return r.content
+
+def post(path):
+	global server
+	return requests.post('%s%s' % (server, path))
 
 def upload(path, ul):
 	global server
 	r = requests.post('%s%s' % (server, path), data=ul, headers = { 'Content-Type': 'application/octet-stream' })
 	if 200 != r.status_code:
-		raise Exception('Unable to upload: %s' % (path))
+		raise Exception('Unable to upload: %s (code: %d)' % (path, r.status_code))
+
+def get_model_name(name):
+	if is_local():
+		return '%s.model' % (name)
+	return '/tmp/%s.model' % (name)
 
 def download_model(ai):
 	global generation
@@ -52,10 +64,10 @@ def download_model(ai):
 	if generation == curr_gen: 
 		return
 	try:
-		os.unlink('/tmp/%s.model' % (name))
+		os.unlink(get_model_name(name))
 	except:
 		pass	
-	open('/tmp/%s.model' % (name), 'wb').write(download('/model/%s' % (ai)))
+	open(get_model_name(name), 'wb').write(download('/model/%s' % (ai)))
 	generation = curr_gen
 
 def download_rom(dl):
@@ -106,6 +118,8 @@ def results_thread():
 		mutex.release()
 
 def backlog_within_reason():
+	if is_local():
+		return True
 	mutex.acquire()
 	n = result_size
 	mutex.release()
@@ -123,8 +137,8 @@ def run_job(j):
 	download_script(j['script'])
 
 	env = os.environ.copy()
-	model_path = f"/tmp/{name}.model"
-	env['MODEL'] = model_path
+	model_path = get_model_name(name)
+	env['MODEL'] = model_path if not is_local() else '../%s.model' % (name) # VERY GOOD DONT TOUCH
 	env['BE'] = f'/tmp/{name}.lua'
 	env['ROLLOUTS'] = str(j['rollouts'])
 	p = subprocess.Popen(['./hqn_quicknes', f'/tmp/{name}.nes'], cwd='bin/', stdout=None, env=env)
@@ -133,20 +147,24 @@ def run_job(j):
 	if 0 == p.returncode:
 		experience_id += 1 # hack fuck
 		old_experience = "%s.experience" % (model_path)
-		new_experience = "%s.%d" % (old_experience, experience_id)
+		if is_local():
+			os.rename(old_experience, 'nodemind/rollouts/%s.%d' % (j['ai'], j['job_id']))
+			post('/result/%d?local=hampus' % (j['job_id']))
+		else:
+			new_experience = "%s.%d" % (old_experience, experience_id)
 
-		os.rename(old_experience, new_experience)
-		filesize = os.path.getsize(new_experience)
+			os.rename(old_experience, new_experience)
+			filesize = os.path.getsize(new_experience)
 
-		mutex.acquire()
-		result_size += filesize
-		result_queue.append({
-			'job_id': j['job_id'],
-			'result_file': new_experience,
-			'size': filesize
-		})
-		print('queue: %d, size:%d' % (len(result_queue), filesize))
-		mutex.release()
+			mutex.acquire()
+			result_size += filesize
+			result_queue.append({
+				'job_id': j['job_id'],
+				'result_file': new_experience,
+				'size': filesize
+			})
+			print('queue: %d, size: %d' % (len(result_queue), filesize))
+			mutex.release()
 	else:
 		print('Sad client %d' % (p.returncode))
 
@@ -154,8 +172,12 @@ def run_job(j):
 print('Using AI server: %s' % (server))
 print('Will work on "%s" as "%s".' % (ai, name))
 
-t = Thread(target=results_thread)
-t.start()
+if not is_local():
+	print('I AM RUNNING WITH REMOTE UPLOAD')
+	t = Thread(target=results_thread)
+	t.start()
+else:
+	print('I AM RUNNING WITH LOCAL UPLOAD')
 
 while True:
 	try:
