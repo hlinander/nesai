@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 rm rollouts/*
-if [[ "$RESUME" == 1 ]]; then
+if [[ "$RESUME" != 1 ]]; then
 rm saved_rollouts/*
 rm ai/vinst.json
 rm models/*
