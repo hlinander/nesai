@@ -21,6 +21,7 @@ $DOCKER_COMMAND run \
 	--env="DISPLAY" \
 	-e NVIDIA_DRIVER_CAPABILITIES=all \
 	-e "TERM=xterm-256color" \
+	-e "RESUME=$RESUME" \
 	--rm -it \
 	-v $(pwd):/nesai \
 	-e HOME=/thehome \

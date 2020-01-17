@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
+rm rollouts/*
+if [[ "$RESUME" == 1 ]]; then
+rm saved_rollouts/*
 rm ai/vinst.json
 rm models/*
-rm rollouts/*
-rm saved_rollouts/*
 rm metrics/*
 rm gifs/*
 ../bin/overmind create models/$1.model
 cp ai/$1.json ai/vinst.json
 cp models/$1.model models/vinst.0.model
+fi
 DEBUG=yes node nodemind.js

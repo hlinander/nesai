@@ -36,7 +36,7 @@ Reward calculate_rewards(Model &experience) {
 		ret.rewards[frame] = reward;
 	}
 	ret.total_reward = std::accumulate(ret.rewards.begin(), ret.rewards.end(), 0.0f);
-	ret.rewards = normalize_rewards(ret.rewards);
+	// ret.rewards = normalize_rewards(ret.rewards);
     // debug_log << "normed = [";
 	// for (int frame = experience.get_frames() - 1; frame >= 1; --frame) {
     //     debug_log << ret.rewards[frame] << ",";
