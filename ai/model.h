@@ -16,7 +16,7 @@
 
 const int N_ACTIONS = 8U;
 const int N_HIDDEN = 64U;
-const int RAM_SIZE = 0x800;
+const int RAM_SIZE = 0; //0x800;
 const int SCREEN_PIXELS = 32*30;
 const int STATE_SIZE = RAM_SIZE + SCREEN_PIXELS * 3;
 const float ACTION_THRESHOLD = 0.5f;
@@ -228,6 +228,14 @@ struct Model {
             }
         }
 		immidiate_rewards.push_back(immidiate_reward);
+	}
+
+	void append_experience(Model &m)
+	{
+		states.insert(states.end(), m.states.begin(), m.states.end());
+		actions.insert(actions.end(), m.actions.begin(), m.actions.end());
+		one_hot_actions.insert(one_hot_actions.end(), m.one_hot_actions.begin(), m.one_hot_actions.end());
+		immidiate_rewards.insert(immidiate_rewards.end(), m.immidiate_rewards.begin(), m.immidiate_rewards.end());
 	}
 
 	ActionType saved_action(int frame) {

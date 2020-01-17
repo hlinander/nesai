@@ -18,7 +18,7 @@ static int get_batch_size()
 	{
 		return atoi(bs);
 	}
-	return 512;
+	return 10000;
 }
 
 static int get_ppo_epochs()
@@ -277,16 +277,27 @@ int main(int argc, const char *argv[])
         float reward = 0;
         int n_rewards = 0;
         std::cout << "Starting updates" << std::endl;
+        Model agg_experiences(LR);
+        {
+            Benchmark exp_agg("Experience aggregation");
+            for(auto &e : experiences)
+            {
+                agg_experiences.append_experience(e);
+                // reward += update_model(m, e, sm, 0.0, false);
+                // ++n_rewards;
+                // total_frames += e.get_frames();
+            }
+        }
 		for(int epoch = 0; epoch < PPO_EPOCHS; epoch++) {
 			Benchmark bepoch{"epoch"};
 			m.optimizer.zero_grad();
             m.value_optimizer.zero_grad();
-            for(auto &e : experiences)
-            {
-                reward += update_model(m, e, sm, 0.0, false);
-                ++n_rewards;
-                total_frames += e.get_frames();
-            }
+            // for(auto &e : experiences)
+            // {
+            reward += update_model(m, agg_experiences, sm, 0.0, false);
+            ++n_rewards;
+            total_frames += agg_experiences.get_frames();
+            // }
 			m.optimizer.step();
 			m.value_optimizer.step();
             if(m.net->isnan()) {
