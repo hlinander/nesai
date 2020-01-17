@@ -68,6 +68,7 @@ function brain_get_reward(frame)
 		old_lives = lives
 	end
 
+	local ypos = read_cpu(0xB5)
 	local pstate = read_cpu(0xE)
 	local level = read_cpu(0x760)
 	local page = read_cpu(0x71A)
@@ -127,7 +128,8 @@ function brain_get_reward(frame)
 		idle_frames = 0
 	end
 
-	if old_pstate ~= pstate and pstate == 0xb then
+	-- Check for dying or out-of-bounds
+	if (old_pstate ~= pstate and pstate == 0xb) or (ypos >= 2) then
 		if nloads < 5 then
 			load_state()
 			nloads = nloads + 1
