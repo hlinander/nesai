@@ -281,7 +281,7 @@ async function advanceGeneration(ai) {
     if(files[i].match(rx)) {
       if(!saved)
       {
-        fs.rename('rollouts/' + files[i], 'saved_rollouts/' + files[i]);
+        fs.copyFile('rollouts/' + files[i], 'saved_rollouts/' + files[i]);
         saved = true;
       }
       else
