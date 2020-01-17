@@ -304,7 +304,10 @@ async function advanceGeneration(ai) {
 app.post('/result/:job_id', async (req, res) => {
   const job_id = req.params.job_id
   const job = jobs[job_id]
-  if(!job) return res.sendStatus(500)
+  if(!job) {
+    console.log(`Completed job ${job_id} does not exist (probably timed out) :(`)
+    return res.sendStatus(500)
+  }
   const ai = job.ai
   const completed = ++ai.jobs_done
   delete jobs[job_id]

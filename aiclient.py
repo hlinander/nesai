@@ -148,8 +148,11 @@ def run_job(j):
 		experience_id += 1 # hack fuck
 		old_experience = "%s.experience" % (model_path)
 		if is_local():
-			os.rename(old_experience, 'nodemind/rollouts/%s.%d' % (j['ai'], j['job_id']))
+			move_to = 'nodemind/rollouts/%s.%d' % (j['ai'], j['job_id'])
+			os.rename(old_experience, move_to)
+			print('Moving local experience %s -> %s' % (old_experience, move_to))
 			post('/result/%d?local=hampus' % (j['job_id']))
+			print('Posted job-completion of %d to node...' % (j['job_id']))
 		else:
 			new_experience = "%s.%d" % (old_experience, experience_id)
 
