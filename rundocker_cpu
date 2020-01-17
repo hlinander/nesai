@@ -3,4 +3,4 @@
 source dockerhelp.sh
 
 docker build -f docker/Dockerfile.cpu docker/ -t nesaicpu
-run_docker nesaicpu ""
+run_docker nesaicpu "bash"

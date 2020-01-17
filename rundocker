@@ -3,4 +3,4 @@
 source dockerhelp.sh
 
 docker build docker/ -t nesai
-run_docker nesai ""
+run_docker nesai "bash"
