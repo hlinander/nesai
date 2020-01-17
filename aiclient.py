@@ -50,7 +50,7 @@ def upload(path, ul):
 
 def get_model_name(name):
 	if is_local():
-		return '%s.model' % (name)
+		return os.path.join(os.getcwd(), 'nodemind', 'rollouts', '%s.model' % (name))
 	return '/tmp/%s.model' % (name)
 
 def download_model(ai):
@@ -138,7 +138,7 @@ def run_job(j):
 
 	env = os.environ.copy()
 	model_path = get_model_name(name)
-	env['MODEL'] = model_path if not is_local() else '../%s.model' % (name) # VERY GOOD DONT TOUCH
+	env['MODEL'] = model_path
 	env['BE'] = f'/tmp/{name}.lua'
 	env['ROLLOUTS'] = str(j['rollouts'])
 	p = subprocess.Popen(['./hqn_quicknes', f'/tmp/{name}.nes'], cwd='bin/', stdout=None, env=env)
@@ -148,7 +148,8 @@ def run_job(j):
 		experience_id += 1 # hack fuck
 		old_experience = "%s.experience" % (model_path)
 		if is_local():
-			move_to = 'nodemind/rollouts/%s.%d' % (j['ai'], j['job_id'])
+			resname = '%s.%d' % (j['ai'], j['job_id'])
+			move_to = os.path.join(os.path.split(old_experience)[0], resname)
 			os.rename(old_experience, move_to)
 			print('Moving local experience %s -> %s' % (old_experience, move_to))
 			post('/result/%d?local=hampus' % (j['job_id']))
