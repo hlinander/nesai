@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 source dockerhelp.sh
 
+NUM_CLIENTS=${NUM_CLIENTS:-1}
+
 docker build docker/ -t nesai
-run_docker nesai "./run_clients 1"
+run_docker nesai "NO_CUDA=1 ./run_clients $NUM_CLIENTS"
