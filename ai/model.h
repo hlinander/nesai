@@ -12,6 +12,7 @@
 #include <cereal/types/vector.hpp>
 #include <cereal/types/array.hpp>
 #include <cereal/types/list.hpp>
+#include "bm.h"
 
 const int N_ACTIONS = 8U;
 const int N_HIDDEN = 64U;
@@ -131,10 +132,16 @@ struct Model {
 	void save_file(const std::string &filename) const {
 		std::stringstream ss;
 		cereal::BinaryOutputArchive ar{ss};
-		save(ar);
+		{
+			Benchmark s("Serialization");
+			save(ar);
+		}
 		std::ofstream out(filename, std::ios_base::binary);
-		auto serial{ ss.str() };
-		out.write(serial.c_str(), serial.length());
+		{
+			Benchmark f("Flush");
+			auto serial{ ss.str() };
+			out.write(serial.c_str(), serial.length());
+		}
 	}
 
 	bool load_file(const std::string& filename) {
