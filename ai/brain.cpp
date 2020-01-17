@@ -111,6 +111,8 @@ void brain_init()
 	srand(time(0));
 	const char *script = getenv("BE");
 
+	torch::set_num_threads(1);
+
 	if(nullptr == script)
 	{
 		enabled = false;
