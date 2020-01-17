@@ -35,7 +35,7 @@ plot_avg_rewards = function(data) {
 	data <- unlist(data)
 	data <- data.frame(mean_reward=data)
 	data$ids = seq_len(nrow(data))
-	g = ggplot(data, aes(x=ids, y=mean_reward)) + geom_line()
+	g = ggplot(data, aes(x=ids, y=mean_reward)) + geom_line() + ylim(0, NA)
 	return(g)
 }
 
