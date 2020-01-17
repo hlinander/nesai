@@ -55,6 +55,7 @@ void replay(Model &m)
         attron(COLOR_PAIR(1));
         mvprintw(0, 2 * 33, "frame: %d", i);
         mvprintw(1, 2 * 33, "reward: %f", r.rewards[i]);
+        mvprintw(2, 2 * 33, "imm. reward: %f", m.immidiate_rewards[i]);
 
         std::string keys;
         keys.push_back(m.actions[i][0] ? 'U' : ' ');
@@ -66,7 +67,7 @@ void replay(Model &m)
         keys.push_back(m.actions[i][6] ? 'S' : ' ');
         keys.push_back(m.actions[i][7] ? 'X' : ' ');
 
-        mvprintw(2, 2 * 33, keys.c_str());
+        mvprintw(3, 2 * 33, keys.c_str());
 
         refresh();
         c = getch();

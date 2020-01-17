@@ -62,7 +62,7 @@ end
 
 function brain_get_reward(frame)
 	local lives = read_cpu(0x75a)
-	if frame < 200 then
+	if frame < 100 then
 		return 0
 	elseif frame == 100 then
 		old_lives = lives
@@ -159,6 +159,9 @@ function brain_get_reward(frame)
 	old_level = level
 	-- print(speedx)
 	-- return reward + speedx * 2
+	if frame < 200 then
+		return 0
+    end
 	return reward
 end
 
