@@ -288,12 +288,13 @@ async function advanceGeneration(ai) {
     if(files[i].match(rx)) {
       if(!saved)
       {
-        fs.copyFile('rollouts/' + files[i], 'saved_rollouts/' + files[i]);
+        await fs.copyFile('rollouts/' + files[i], 'saved_rollouts/' + files[i] + '.g' + ai.generation);
+        await fs.unlink('rollouts/' + files[i]);
         saved = true;
       }
       else
       {
-        fs.unlink('rollouts/' + files[i]);
+        await fs.unlink('rollouts/' + files[i]);
       }
     }
   }

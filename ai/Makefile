@@ -31,7 +31,7 @@ libbrain.so: brain.o
 overmind.o: Makefile overmind.cpp model.h brain.h bm.h
 	g++ overmind.cpp $(INCLUDES) $(CPPFLAGS) -c
 
-replay.o: Makefile replay.cpp replay.h
+replay.o: Makefile replay.cpp replay.h model.h
 	g++ replay.cpp $(INCLUDES) $(CPPFLAGS) -c
 
 reward.o: Makefile reward.cpp reward.h

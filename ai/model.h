@@ -16,7 +16,7 @@
 
 const int N_ACTIONS = 8U;
 const int N_HIDDEN = 64U;
-const int RAM_SIZE = 0; //0x800;
+const int RAM_SIZE = 0x800;
 const int SCREEN_PIXELS = 32*30;
 const int STATE_SIZE = RAM_SIZE + SCREEN_PIXELS * 3;
 const float ACTION_THRESHOLD = 0.5f;

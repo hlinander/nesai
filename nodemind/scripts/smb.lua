@@ -103,22 +103,25 @@ function brain_get_reward(frame)
 			reward = reward + dscore
 			old_score = mario_score
         end
-		if math.abs(last_absolute_x - absolute_x) < 10 then
+		if math.abs(last_absolute_x - absolute_x) < 2 then
 			idle_frames = idle_frames + 1
-			if idle_frames > 120 then
+			if idle_frames > 20 then
 				reward = reward - 1
-				if idle_frames > 180 then
-					is_dead = true
-					-- if nloads < 5 then
-					-- 	load_state()
-					-- 	nloads = nloads + 1
-					-- else
-					-- 	is_dead = true
-					-- end
-					reward = reward - 100
-					next_save_frame = 0
-				end
-			end
+            end
+			-- if idle_frames > 99 then
+			-- 	-- reward = reward - 1
+			-- 	-- if idle_frames > 180 then
+			-- 	if nloads < 10 then
+			-- 		load_state()
+			-- 		reward = 0
+			-- 		nloads = nloads + 1
+			-- 	else
+			-- 		is_dead = true
+			-- 	end
+			-- 	-- reward = reward - 100
+			-- 	next_save_frame = 0
+			-- 	-- end
+			-- end
 		else
 			idle_frames = 0
 			last_absolute_x = absolute_x
@@ -130,8 +133,9 @@ function brain_get_reward(frame)
 
 	-- Check for dying or out-of-bounds
 	if (old_pstate ~= pstate and pstate == 0xb) or (ypos >= 2) then
-		if nloads < 5 then
+		if nloads < 10 then
 			load_state()
+			reward = 0
 			nloads = nloads + 1
 		else
 			is_dead = true

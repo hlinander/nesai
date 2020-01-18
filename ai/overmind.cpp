@@ -18,7 +18,7 @@ static int get_batch_size()
 	{
 		return atoi(bs);
 	}
-	return 10000;
+	return 1024;
 }
 
 static int get_ppo_epochs()
