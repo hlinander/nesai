@@ -2,4 +2,4 @@
 source dockerhelp.sh
 
 docker build docker/ -t nesai
-run_docker nesai "cd nodemind; ./reset smb"
+run_docker nesai "cd nodemind; ./reset"

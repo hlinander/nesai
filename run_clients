@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
+for AI in $AIS
+do
 for i in $(seq 1 $1)
 do
-	echo "Starting client $i"
-	HL=1 python3 ./aiclient.py vinst c$i &
+	echo "Starting client $i for $AI"
+	HL=1 python3 ./aiclient.py $AI $AI$i &
+done
 done
 read
 pkill -P $$

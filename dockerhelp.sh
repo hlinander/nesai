@@ -1,12 +1,12 @@
 DOCKER_GPU_PARAMS=""
 DOCKER_COMMAND="nvidia-docker"
 
-if [ -z "$NVIDIA_DOCKER" ]; then
+if ! [ -x "$(command -v nvidia-docker)" ]; then
 	DOCKER_COMMAND="docker"
 	DOCKER_GPU_PARAMS="--gpus=all"
 fi
 
-if [ -n "$CPU" ]; then
+if [ -x "$(command -v nvidia-smi)" ]; then
 	DOCKER_GPU_PARAMS=""
 fi
 
@@ -23,6 +23,7 @@ $DOCKER_COMMAND run \
 	-e NVIDIA_DRIVER_CAPABILITIES=all \
 	-e "TERM=xterm-256color" \
 	-e "RESUME=$RESUME" \
+	-e "AIS=$AIS" \
 	-e "OMP_NUM_THREADS=1" \
 	--rm -it \
 	-v $(pwd):/nesai \

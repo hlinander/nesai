@@ -2,12 +2,17 @@
 rm rollouts/*
 if [[ "$RESUME" != 1 ]]; then
 rm saved_rollouts/*
-rm ai/vinst.json
+rm ai/*.json
 rm models/*
 rm metrics/*
 rm gifs/*
-../bin/overmind create models/$1.model
-cp ai/$1.json ai/vinst.json
-cp models/$1.model models/vinst.0.model
+for AI in $AIS
+do
+echo $AI
+../bin/overmind create models/$AI.model
+cp ai_templates/$AI.json ai/$AI.json
+cp models/$AI.model models/$AI.0.model
+echo "$AI done"
+done
 fi
 DEBUG=yes node nodemind.js

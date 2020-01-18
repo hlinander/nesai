@@ -198,8 +198,8 @@ while True:
 			print('Server failed with %d (%s).' % (r.status_code, r.text))
 			break
 	except Exception as e:
-		print('EXCEPTION: %s' % (e))
-		traceback.print_exc()
+		# print('EXCEPTION: %s' % (e))
+		# traceback.print_exc()
 		print('Sleeping one second before trying to resume...')
 		time.sleep(1.0)
 

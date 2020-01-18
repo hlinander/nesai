@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 ./build_gpu
+export AIS=$@
 tmux \
-	new-session  './runserver' \; \
-	split-window './runclients' \;
+	new-session  "./runserver" \; \
+	split-window "./runclients" \;
