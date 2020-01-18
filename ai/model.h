@@ -42,6 +42,7 @@ typedef std::array<uint8_t, ACTION_SIZE> ActionType;
 template <int N_OUTPUT>
 struct Net : torch::nn::Module {
 	Net() : device(get_device()) {
+		Benchmark nt("Net constrct");
 		bn1 = register_module("bn1", torch::nn::BatchNorm(N_HIDDEN));
 		bn2 = register_module("bn2", torch::nn::BatchNorm(N_HIDDEN));
 		fc1 = register_module("fc1", torch::nn::Linear(STATE_SIZE, N_HIDDEN));
@@ -56,6 +57,7 @@ struct Net : torch::nn::Module {
 		torch::nn::init::zeros_(fc3->bias);
 		torch::nn::init::zeros_(fc2->bias);
 		torch::nn::init::zeros_(fc1->bias);
+		Benchmark togpu("NET to GPU");
 		to(device);
 	}
 

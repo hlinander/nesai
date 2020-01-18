@@ -18,10 +18,12 @@ $DOCKER_COMMAND run \
 	-e XAUTHORITY \
 	-v /tmp/.X11-unix:/tmp/.X11-unix \
 	--volume="$HOME/.Xauthority:/root/.Xauthority:rw" \
+	--volume="$HOME/.nv/:/thehome/.nv/:rw" \
 	--env="DISPLAY" \
 	-e NVIDIA_DRIVER_CAPABILITIES=all \
 	-e "TERM=xterm-256color" \
 	-e "RESUME=$RESUME" \
+	-e "OMP_NUM_THREADS=1" \
 	--rm -it \
 	-v $(pwd):/nesai \
 	-e HOME=/thehome \

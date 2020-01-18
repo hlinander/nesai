@@ -243,13 +243,15 @@ int main(int argc, const char *argv[])
         std::cout << "Update!" << std::endl;
         Benchmark full_ud("full_update");
         Model m(LR);
+        Benchmark full_ud3("full_update3");
         if(!m.load_file(argv[2]))
         {
             std::cout << "The horse has no carrot" << std::endl;
             return 1;
         }
+        Benchmark full_ud2("full_update2");
 
-        std::vector<Model> experiences;
+        static std::vector<Model> experiences;
         std::ifstream in{argv[3]};
         std::string str;
         {

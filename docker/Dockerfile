@@ -6,7 +6,8 @@ RUN apt-get update
 RUN apt install -y wget unzip build-essential cmake git gdb liblua5.3-dev lua5.3 valgrind curl
 
 # Torch C++
-ARG TORCH_ZIP=libtorch-cxx11-abi-shared-with-deps-1.3.1.zip
+# ARG TORCH_ZIP=libtorch-cxx11-abi-shared-with-deps-1.3.1.zip
+ARG TORCH_ZIP=libtorch-cxx11-abi-shared-with-deps-1.4.0.zip
 RUN mkdir /pytorch
 WORKDIR /pytorch
 RUN wget https://download.pytorch.org/libtorch/cu101/${TORCH_ZIP}
