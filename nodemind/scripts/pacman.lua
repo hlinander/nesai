@@ -3,12 +3,14 @@ local old_score
 local is_dead
 local nloads
 local nmaxframes
+local next_save_frame
 
 function brain_begin_rollout()
 	last_input = 0
 	old_score = 0
 	nloads = 0
 	is_dead = false
+	next_save_frame = 0
 	nmaxframes = os.getenv('MAX_FRAMES')
 	if nmaxframes == nil then
 		nmaxframes = 3000

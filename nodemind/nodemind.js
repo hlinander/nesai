@@ -90,11 +90,13 @@ app.get('/valuestats', async (req, res) => {
 });
 
 /* Plots the full statistics but for the nGenerations last generations */
-app.get('/smallstats/:nGenerations', async (req, res) => {
+app.get('/smallstats/:name/:nGenerations', async (req, res) => {
   const n = parseInt(req.params.nGenerations)
   try {
+    const name = req.params.name
+    if(!name || !(name in ais)) return res.sendStatus(500)
     //await fs.copyFile("metrics.json", "metrics_read.json")
-    let { stdout } = await exec(`ls -1t metrics/*.json | head -${n}`)
+    let { stdout } = await exec(`ls -1t metrics/${name}_*.json | head -${n}`)
     const files = stdout.split('\n').join(' ')
     {
     let cmd = `jq -s . ${files} > metrics_read.json`
@@ -117,10 +119,12 @@ app.get('/smallstats/:nGenerations', async (req, res) => {
   }
 });
 
-app.get('/largestats', async (req, res) => {
+app.get('/largestats/:name', async (req, res) => {
   try {
+    const name = req.params.name
+    if(!name || !(name in ais)) return res.sendStatus(500)
     //await fs.copyFile("metrics.json", "metrics_read.json")
-    await exec("jq -s . metrics/*.json > metrics_read.json")
+    await exec(`jq -s . metrics/${name}_*.json > metrics_read.json`)
     await exec("R --no-save --no-restore < plot_stats.r")
     const data = await fs.readFile("stats.png")
     return res.end(data, 'binary')
@@ -256,13 +260,16 @@ async function advanceGeneration(ai) {
   console.log('../bin/overmind update '
     + getModelFile(ai.name, ai.generation) + ' '
     + getExperienceFile(ai.name) + ' '
-    + modelfile)
+    + modelfile + ' '
+    + ai.generation + ' '
+    + ai.name)
     try {
   const { stdout, stderr } = await exec('../bin/overmind update '
     + getModelFile(ai.name, ai.generation) + ' '
     + getExperienceFile(ai.name) + ' '
     + modelfile + ' '
-    + ai.generation)
+    + ai.generation + ' '
+    + ai.name)
 
   console.log(stdout);
     }

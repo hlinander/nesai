@@ -231,15 +231,16 @@ int main(int argc, const char *argv[])
     }
     else if(0 == strcmp(argv[1], "update"))
     {
-        if(argc < 6)
+        if(argc < 7)
         {
-            std::cout << "update <model> <experiences> <model_out> <generation>" << std::endl;
+            std::cout << "update <model> <experiences> <model_out> <generation> <name>" << std::endl;
             return 1;
         }
         constexpr size_t arg_model = 2;
         constexpr size_t arg_experiences = 3;
         constexpr size_t arg_model_out = 4;
         constexpr size_t arg_generation = 5;
+        constexpr size_t arg_name = 6;
         std::cout << "Update!" << std::endl;
         Benchmark full_ud("full_update");
         Model m(LR);
@@ -360,9 +361,11 @@ int main(int argc, const char *argv[])
         }
 #ifndef NO_HAMPUS
         {
+            std::stringstream hampe_file;
             Benchmark hampe2("hampe2");
             std::experimental::filesystem::create_directories("metrics/");
-            std::ofstream out(std::string("metrics/") + argv[arg_generation] + ".json");
+            hampe_file << std::string("metrics/") << argv[arg_name] << "_" << argv[arg_generation] << ".json";
+            std::ofstream out(hampe_file.str());
             out << std::setw(4) << json << std::endl;
         }
 #endif

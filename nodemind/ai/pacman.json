@@ -1,0 +1,1 @@
+{"name":"pacman","generation":6,"jobs_per_generation":2,"jobs_done":1,"rollouts":2,"job_timeout":60000,"rom":"pacman.nes","model":"pacman","script":"pacman.lua"}
