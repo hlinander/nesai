@@ -1,1 +1,0 @@
-{"name":"vinst","generation":111,"jobs_per_generation":2,"jobs_done":1,"rollouts":2,"job_timeout":60000,"rom":"smb.nes","model":"vinst","script":"smb.lua"}
