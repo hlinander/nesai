@@ -306,7 +306,7 @@ async function advanceGeneration(ai) {
     if(files[i].match(rx)) {
       if(!saved)
       {
-        await fs.copyFile('rollouts/' + files[i], 'saved_rollouts/' + files[i] + '.g' + ai.generation);
+        await fs.copyFile('rollouts/' + files[i], 'saved_rollouts/' + files[i].split(".")[0] + '.g' + ai.generation);
         await fs.unlink('rollouts/' + files[i]);
         saved = true;
       }

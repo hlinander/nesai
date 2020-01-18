@@ -8,6 +8,7 @@ local idle_frames
 local next_save_frame
 local old_pstate
 local old_score
+local old_max_x
 local nloads
 local nmaxframes
 
@@ -21,6 +22,7 @@ function brain_begin_rollout()
 	old_screenx = 0
 	old_relx = 0
 	last_absolute_x = 0
+	old_max_x = 0
 	is_dead = false
 	last_input = 0
 	idle_frames = 0
@@ -92,7 +94,10 @@ function brain_get_reward(frame)
     end
 
 	if 1 == read_cpu(0x770) and 3 == read_cpu(0x772) then
-		reward = xscore -- + (math.abs(old_level - level) * 1000)
+		if absolute_x > old_max_x then
+			reward = (absolute_x - old_max_x)
+			old_max_x = absolute_x
+		end
 		--
 		-- Penalize spazzing about like a fucking retard and not moving.
 		-- Essentially, make a 10px movement every 2 seconds or lose 10 pts / frame
@@ -103,29 +108,29 @@ function brain_get_reward(frame)
 			reward = reward + dscore
 			old_score = mario_score
         end
-		if math.abs(last_absolute_x - absolute_x) < 10 then
-			idle_frames = idle_frames + 1
-			if idle_frames > 100 then
-				reward = reward - 1
-            end
-			-- if idle_frames > 99 then
-			-- 	-- reward = reward - 1
-			-- 	-- if idle_frames > 180 then
-			-- 	if nloads < 10 then
-			-- 		load_state()
-			-- 		reward = 0
-			-- 		nloads = nloads + 1
-			-- 	else
-			-- 		is_dead = true
-			-- 	end
-			-- 	-- reward = reward - 100
-			-- 	next_save_frame = 0
-			-- 	-- end
-			-- end
-		else
-			idle_frames = 0
-			last_absolute_x = absolute_x
-		end
+		-- if math.abs(last_absolute_x - absolute_x) < 10 then
+		-- 	idle_frames = idle_frames + 1
+		-- 	if idle_frames > 100 then
+		-- 		reward = reward - 1
+  --           end
+		-- 	-- if idle_frames > 99 then
+		-- 	-- 	-- reward = reward - 1
+		-- 	-- 	-- if idle_frames > 180 then
+		-- 	-- 	if nloads < 10 then
+		-- 	-- 		load_state()
+		-- 	-- 		reward = 0
+		-- 	-- 		nloads = nloads + 1
+		-- 	-- 	else
+		-- 	-- 		is_dead = true
+		-- 	-- 	end
+		-- 	-- 	-- reward = reward - 100
+		-- 	-- 	next_save_frame = 0
+		-- 	-- 	-- end
+		-- 	-- end
+		-- else
+		-- 	idle_frames = 0
+		-- 	last_absolute_x = absolute_x
+		-- end
 	else
 		last_absolute_x = absolute_x
 		idle_frames = 0
