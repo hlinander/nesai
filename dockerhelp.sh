@@ -24,6 +24,7 @@ $DOCKER_COMMAND run \
 	-e "TERM=xterm-256color" \
 	-e "RESUME=$RESUME" \
 	-e "AIS=$AIS" \
+	-e "JOBS=$JOBS" \
 	-e "OMP_NUM_THREADS=1" \
 	--rm -it \
 	-v $(pwd):/nesai \

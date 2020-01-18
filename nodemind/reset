@@ -10,7 +10,8 @@ for AI in $AIS
 do
 echo $AI
 ../bin/overmind create models/$AI.model
-cp ai_templates/$AI.json ai/$AI.json
+export JOBS=${JOBS:-2}
+envsubst < ai_templates/$AI.json > ai/$AI.json
 cp models/$AI.model models/$AI.0.model
 echo "$AI done"
 done
