@@ -84,7 +84,7 @@ plot_actions = function(data) {
 	return(res + theme_minimal())
 }
 
-plot_all = function(data) {
+plot_all = function(data, plot_file) {
 	w1 <- plot_parameters(data, 'parameters', 'fc1.weight', 'gray')
 	w2 <- plot_parameters(data, 'parameters', 'fc2.weight', 'gray')
 	w3 <- plot_parameters(data, 'parameters', 'fc3.weight', 'gray')
@@ -125,12 +125,14 @@ plot_all = function(data) {
 	plot <- grid.arrange(w1,w2,w3, b1,b2,b3,dw1,dw2,dw3, db1,db2,db3,mr,rewards, lengths, actions, nrow=3, layout_matrix=lay)
 	#print(plot)
 	# plot <- grid.arrange(w1,w2,w3, b1,b2,b3,dw1,dw2,dw3, db1,db2,db3,mr,rewards, lengths, nrow=3, layout_matrix=lay)
-	ggsave("stats.png", plot=plot, device="png", width=30, height=20)
+	ggsave(plot_file, plot=plot, device="png", width=30, height=20)
 }
 
 plot_all_epochs <- function() {
-	data <- fromJSON(file="metrics_read.json")
-	plot_all(data)
+	data_file <- Sys.getenv("PLOT_DATA_FILE")
+	plot_file <- Sys.getenv("PLOT_FILE")
+	data <- fromJSON(file=data_file)
+	plot_all(data, plot_file)
 }
 
 # plot_all_epochs()
@@ -149,9 +151,11 @@ plot_value_vs_reward <- function(data) {
 }
 
 plot_vr <- function() {
-	data <- fromJSON(file="metrics_read.json")
+	data_file <- Sys.getenv("PLOT_DATA_FILE")
+	plot_file <- Sys.getenv("PLOT_FILE")
+	data <- fromJSON(file=data_file)
 	p <- plot_value_vs_reward(data)
-	ggsave("values.png", plot=p, device="png", width=20, height=5)
+	ggsave(plot_file, plot=p, device="png", width=20, height=5)
 }
 
 #print(plot_parameters(json_data))

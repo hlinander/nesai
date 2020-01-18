@@ -69,7 +69,7 @@ app.get('/valuestats', async (req, res) => {
     let { stdout } = await exec(`ls -1t metrics/*.json | head -1`)
     const files = stdout.split('\n').join(' ')
     {
-    let cmd = `jq -s . ${files} > metrics_read.json`
+    let cmd = `jq -s . ${files} > metrics_read_${name}.json`
     console.log(cmd)
     let { stdout } = await exec(cmd)
     console.log(stdout)
@@ -77,10 +77,16 @@ app.get('/valuestats', async (req, res) => {
     {
     let cmd = "R --no-save --no-restore < plot_val.r"
     console.log(cmd)
-    let { stdout } = await exec(cmd)
+    let { stdout } = await exec(cmd,
+    {
+      env: {
+        PLOT_DATA_FILE: `metrics_read_${name}.json`,
+        PLOT_FILE: `valstats_${name}.png`
+      }
+    })
     console.log(stdout)
     }
-    const data = await fs.readFile("values.png")
+    const data = await fs.readFile(`valstats_${name}.png`)
     return res.end(data, 'binary')
   }
   catch(err) {
@@ -99,7 +105,7 @@ app.get('/smallstats/:name/:nGenerations', async (req, res) => {
     let { stdout } = await exec(`ls -1t metrics/${name}_*.json | head -${n}`)
     const files = stdout.split('\n').join(' ')
     {
-    let cmd = `jq -s . ${files} > metrics_read.json`
+    let cmd = `jq -s . ${files} > metrics_read_${name}.json`
     console.log(cmd)
     let { stdout } = await exec(cmd)
     console.log(stdout)
@@ -107,10 +113,16 @@ app.get('/smallstats/:name/:nGenerations', async (req, res) => {
     {
     let cmd = "R --no-save --no-restore < plot_stats.r"
     console.log(cmd)
-    let { stdout } = await exec(cmd)
+    let { stdout } = await exec(cmd,
+    {
+      env: {
+        PLOT_DATA_FILE: `metrics_read_${name}.json`,
+        PLOT_FILE: `smallstats_${name}.png`
+      }
+    })
     console.log(stdout)
     }
-    const data = await fs.readFile("stats.png")
+    const data = await fs.readFile(`smallstats_${name}.png`)
     return res.end(data, 'binary')
   }
   catch(err) {
@@ -124,9 +136,15 @@ app.get('/largestats/:name', async (req, res) => {
     const name = req.params.name
     if(!name || !(name in ais)) return res.sendStatus(500)
     //await fs.copyFile("metrics.json", "metrics_read.json")
-    await exec(`jq -s . metrics/${name}_*.json > metrics_read.json`)
-    await exec("R --no-save --no-restore < plot_stats.r")
-    const data = await fs.readFile("stats.png")
+    await exec(`jq -s . metrics/${name}_*.json > metrics_read_${name}.json`)
+    await exec("R --no-save --no-restore < plot_stats.r",
+    {
+      env: {
+        PLOT_DATA_FILE: `metrics_read_${name}.json`,
+        PLOT_FILE: `stats_${name}.png`
+      }
+    })
+    const data = await fs.readFile(`stats_${name}.png`)
     return res.end(data, 'binary')
   }
   catch(err) {
