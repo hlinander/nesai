@@ -103,9 +103,9 @@ function brain_get_reward(frame)
 			reward = reward + dscore
 			old_score = mario_score
         end
-		if math.abs(last_absolute_x - absolute_x) < 2 then
+		if math.abs(last_absolute_x - absolute_x) < 10 then
 			idle_frames = idle_frames + 1
-			if idle_frames > 20 then
+			if idle_frames > 100 then
 				reward = reward - 1
             end
 			-- if idle_frames > 99 then
