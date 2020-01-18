@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 source dockerhelp.sh
 
-NUM_CLIENTS=${NUM_CLIENTS:-1}
+CORES=$(getconf _NPROCESSORS_ONLN)
+NUM_CLIENTS=${NUM_CLIENTS:-$CORES}
 
 docker build docker/ -t nesai
 run_docker nesai "NO_CUDA=1 ./run_clients $NUM_CLIENTS"
