@@ -228,6 +228,7 @@ static int run_brain()
 	while(brain_on_frame(&frame_reward))
 	{
 		uint8_t bits = brain_controller_bits();
+		total_reward += frame_reward;
 
 		if(is_human)
 		{
@@ -327,7 +328,6 @@ static int run_brain()
 				}
 			}
 
-			total_reward += frame_reward;
 			// write_string(8, 208, std::to_string(rollout), 0xFF0000FF, 1, 1);
 			write_string(8, 218, keyout, 0xFFFFFFFF, 1, 2);
 			write_string(8 + (8*16) + 8, 218, std::to_string(static_cast<int>(total_reward)), 0xFF0000FF, 1, 2);
