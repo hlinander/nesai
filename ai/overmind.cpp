@@ -31,7 +31,7 @@ static int get_ppo_epochs()
 	return 3;
 }
 
-const float LR = 0.01;//0.00000001;
+const float LR = 0.1;//0.00000001;
 static int BATCH_SIZE = get_batch_size();
 const int PPO_EPOCHS = get_ppo_epochs();
 const bool DEBUG = nullptr != getenv("DEBUG");
@@ -146,7 +146,7 @@ float update_model(Model &m, Model &experience, stat_map &stats, const float avg
         */
 		auto trewards = torch::from_blob(static_cast<void*>(rewards_batch.data()), {(long)actual_bs, 1}, torch::kFloat32);
         auto trewards_gpu = trewards.to(m.net->device);
-        auto trewards_minus_V = trewards_gpu; //- v; //torch::clamp(v, 0.0f, 10000.0f);
+        auto trewards_minus_V = trewards_gpu - v; //torch::clamp(v, 0.0f, 10000.0f);
 		auto torch_actions = torch::from_blob(static_cast<void*>(action_batch.data()), {(long)actual_bs, ACTION_SIZE}, torch::kFloat32);
         auto gpu_actions = torch_actions.to(m.net->device);
 
