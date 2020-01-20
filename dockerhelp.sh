@@ -6,11 +6,12 @@ if ! [ -x "$(command -v nvidia-docker)" ]; then
 	DOCKER_GPU_PARAMS="--gpus=all"
 fi
 
-if [ -x "$(command -v nvidia-smi)" ]; then
+if ! [ -x "$(command -v nvidia-smi)" ]; then
 	DOCKER_GPU_PARAMS=""
 fi
 
 run_docker() {
+echo $DOCKER_COMMAND $DOCKER_GPU_PARAMS
 $DOCKER_COMMAND run \
 	$DOCKER_GPU_PARAMS \
 	-u $(id -u):$(id -g) \
