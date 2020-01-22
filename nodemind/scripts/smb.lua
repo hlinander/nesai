@@ -94,10 +94,11 @@ function brain_get_reward(frame)
     end
 
 	if 1 == read_cpu(0x770) and 3 == read_cpu(0x772) then
-		if absolute_x > old_max_x then
-			reward = (absolute_x - old_max_x)
-			old_max_x = absolute_x
-		end
+		reward = xscore
+		-- if absolute_x > old_max_x then
+		-- 	reward = (absolute_x - old_max_x)
+		-- 	old_max_x = absolute_x
+		-- end
 		--
 		-- Penalize spazzing about like a fucking retard and not moving.
 		-- Essentially, make a 10px movement every 2 seconds or lose 10 pts / frame

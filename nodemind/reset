@@ -6,6 +6,7 @@ rm ai/*.json
 rm models/*
 rm metrics/*
 rm gifs/*
+rm public/gifs/*
 for AI in $AIS
 do
 echo $AI

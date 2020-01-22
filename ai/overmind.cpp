@@ -31,7 +31,7 @@ static int get_ppo_epochs()
 	return 3;
 }
 
-const float LR = 0.0001;//0.00000001;
+const float LR = 0.01;//0.00000001;
 static int BATCH_SIZE = get_batch_size();
 const int PPO_EPOCHS = get_ppo_epochs();
 const bool DEBUG = nullptr != getenv("DEBUG");
@@ -101,6 +101,8 @@ float update_model_softmax(Model &m, Model &experience, stat_map &stats, const f
 	rewards_batch.resize(BATCH_SIZE);
 	std::vector<float> action_batch;
 	action_batch.resize(BATCH_SIZE * ACTION_SIZE);
+    std::vector<long> action_indices;
+	action_indices.resize(BATCH_SIZE);
 
 	for (int frame = 0; frame < experience.get_frames(); frame+=BATCH_SIZE) {
 		size_t actual_bs = std::min(BATCH_SIZE, experience.get_frames() - frame);
@@ -109,29 +111,48 @@ float update_model_softmax(Model &m, Model &experience, stat_map &stats, const f
         }
         auto v = m.value_net->forward(experience.get_batch(frame, frame + actual_bs));
 		auto logp = m.forward_batch_nice(experience.get_batch(frame, frame + actual_bs));
-		auto p = torch::softmax(logp, 1);
-		auto old_p = torch::softmax(experience.forward_batch_nice(frame, frame + actual_bs), 1);
+		// auto p = torch::softmax(logp, 1);
+		auto old_logp = experience.forward_batch_nice(frame, frame + actual_bs);
 
 		for(size_t i = 0; i < actual_bs; ++i) {
             rewards_batch[i] = reward.rewards[frame + i];
             for(size_t j = 0; j < ACTION_SIZE; ++j) {
                 action_batch[i * ACTION_SIZE + j] = experience.actions[frame + i][j];
+                if(experience.actions[frame + i][j] == 1)
+                {
+                    action_indices[i] = static_cast<long>(j);
+                }
             }
 		}
 
 		auto trewards = torch::from_blob(static_cast<void*>(rewards_batch.data()), {(long)actual_bs, 1}, torch::kFloat32);
         auto trewards_gpu = trewards.to(m.net->device);
-        auto trewards_minus_V = trewards_gpu - v; //torch::clamp(v, 0.0f, 10000.0f);
+        auto trewards_minus_V = trewards_gpu - v.detach(); //torch::clamp(v, 0.0f, 10000.0f);
 		auto torch_actions = torch::from_blob(static_cast<void*>(action_batch.data()), {(long)actual_bs, ACTION_SIZE}, torch::kFloat32);
+		auto torch_action_indices = torch::from_blob(static_cast<void*>(action_indices.data()), {(long)actual_bs, 1}, torch::kLong);
         auto gpu_actions = torch_actions.to(m.net->device);
-        std::cout << "p: ";
-        for(auto x: p.sizes())
-            std::cout << x << ", ";
-        std::cout << std::endl << "g: ";
-        for(auto x: gpu_actions.sizes())
-            std::cout << x << ", ";
-        std::cout << std::flush;
-        auto r = p * gpu_actions / torch::clamp(old_p, 0.0001f, 1.0f);
+        auto gpu_action_indices = torch_action_indices.to(m.net->device);
+        // std::cout << torch_actions << std::endl;
+        // std::cout << "p: ";
+        // auto aa = torch_action_indices.accessor<long, 2>();
+        // for(int i = 0; i < actual_bs; ++i)
+        // {
+        //     std::cout << std::endl << "old_logp: (";
+        //     for(int j = 0; j < ACTION_SIZE; ++j)
+        //     {
+        //         std::cout << old_logp[i][j] << ", ";
+        //     }
+        //     std::cout << ") : " << aa[i][0] << std::endl;
+        // }
+        // std::cout << std::endl << "g: ";
+        // for(auto x: gpu_actions.sizes())
+        //     std::cout << x << ", ";
+        // std::cout << std::flush;
+        // auto r = p * gpu_actions / torch::clamp(old_p, 0.0001f, 1.0f);
+        auto logp_action = logp.gather(1, gpu_action_indices);
+        auto old_logp_action = old_logp.gather(1, gpu_action_indices);
+        auto r = torch::exp(logp_action - old_logp_action.detach());
+        // std::cout << (r * trewards_gpu).mean().item<float>() << std::endl;
 		auto lloss = torch::min(r * trewards_gpu, torch::clamp(r, 1.0 - 0.2, 1.0 + 0.2) * trewards_gpu);
 	    auto sloss = lloss.mean();
 

@@ -48,7 +48,7 @@ Reward calculate_rewards(Model &experience) {
             // debug_log << "f " << frame << ": " << experience.immidiate_rewards[frame] << ", ";
         }
 		reward += experience.immidiate_rewards[frame];
-		reward *= 0.99;
+		reward *= 0.90;
 		ret.rewards[frame] = reward;
 	}
 	ret.total_reward = std::accumulate(ret.rewards.begin(), ret.rewards.end(), 0.0f);

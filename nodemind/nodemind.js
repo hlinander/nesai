@@ -62,10 +62,13 @@ async function saveAI(ai) {
 }
 
 /* Plots value network reward estimate vs observed rewards */
-app.get('/valuestats', async (req, res) => {
+app.get('/valuestats/:name', async (req, res) => {
   const n = parseInt(req.params.nGenerations)
   try {
     //await fs.copyFile("metrics.json", "metrics_read.json")
+    const name = req.params.name
+    if(!name || !(name in ais)) return res.sendStatus(500)
+
     let { stdout } = await exec(`ls -1t metrics/*.json | head -1`)
     const files = stdout.split('\n').join(' ')
     {
@@ -87,7 +90,12 @@ app.get('/valuestats', async (req, res) => {
     console.log(stdout)
     }
     const data = await fs.readFile(`valstats_${name}.png`)
-    return res.end(data, 'binary')
+    await fs.writeFile(`public/valuestats_${name}.png`, data)
+    return res.render('stats', {
+      title: `Value Stats - ${name}`,
+      ais,
+      file: `/valuestats_${name}.png`
+    })
   }
   catch(err) {
     console.dir(err);

@@ -14,7 +14,6 @@
 #include <cereal/types/list.hpp>
 #include "bm.h"
 
-const int N_ACTIONS = 8U;
 const int N_HIDDEN = 64U;
 const int RAM_SIZE = 0x800;
 const int SCREEN_PIXELS = 32*30;
@@ -82,8 +81,11 @@ struct Net : torch::nn::Module {
 	}
 
 	torch::Tensor forward(torch::Tensor x) {
-		x = bn1->forward(torch::leaky_relu(fc1->forward(x)));
-		x = bn2->forward(torch::leaky_relu(fc2->forward(x)));
+		// x = bn1->forward(torch::leaky_relu(fc1->forward(x)));
+		// x = bn2->forward(torch::leaky_relu(fc2->forward(x)));
+		// x = fc3->forward(x);
+		x = torch::tanh(fc1->forward(x));
+		x = torch::tanh(fc2->forward(x));
 		x = fc3->forward(x);
 		return x;
 	}
@@ -211,12 +213,20 @@ struct Model {
 
 	ActionType get_action(StateType &s) {
 		auto tout = forward(s);
-		torch::Tensor out = torch::softmax(tout, 1);
+		torch::Tensor out = torch::softmax(tout, 1).to(torch::kCPU);
 		torch::Tensor argmax = torch::argmax(out, 1).to(torch::kCPU);
+		torch::Tensor sample = torch::multinomial(out, 1, true, nullptr);
 		auto argmax_a = argmax.accessor<long,1>();
+		// std::cout << out << std::endl;
+		// std::cout << sample << std::endl;
+		// std::cout << "NEW SAMPLE" << std::endl;
+		// std::cout << "ARGMAX" << argmax  << " p: " << out[0][argmax_a[0]]<< std::endl;
+		// std::cout << "SAMPLE" << sample << std::endl;
+		auto sample_a = sample.accessor<long, 2>();
         std::array<uint8_t, ACTION_SIZE> actions;
 		actions.fill(0);
-		actions[static_cast<size_t>(argmax_a[0])] = 1;
+		// actions[static_cast<size_t>(argmax_a[0])] = 1;
+		actions[static_cast<size_t>(sample_a[0][0])] = 1;
 		return actions;
 	}
 
