@@ -1,9 +1,11 @@
-html
-    title Sko
-    table
-        - var n = 0
-        - for(let n = 0; n < gifs.length; ++n)
-            - if((n % 5) == 0)
-                tr
-            td
-                img(src=gifs[n],title=gifs[n])
+extends layout.pug
+
+block content
+	h1 Gifz
+	table
+		- var n = 0
+		- for(let n = 0; n < gifs.length; ++n)
+			- if((n % 5) == 0)
+				tr
+			td
+				img(src=gifs[n],title=gifs[n],style="padding: 2px;")

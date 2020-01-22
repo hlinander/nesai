@@ -24,7 +24,7 @@ app.use(bodyParser.raw({
 }))
 app.use(bodyParser.urlencoded({limit: '5000mb', extended: true}));
 app.set('view engine', 'pug')
-app.use(express.static('gifs'))
+app.use(express.static('public'))
 
 function getModelFile(name, generation) {
   return 'models/' + name + '.' + generation + '.model'
@@ -123,7 +123,12 @@ app.get('/smallstats/:name/:nGenerations', async (req, res) => {
     console.log(stdout)
     }
     const data = await fs.readFile(`smallstats_${name}.png`)
-    return res.end(data, 'binary')
+    await fs.writeFile(`public/smallstats_${name}.png`, data)
+    return res.render('stats', {
+      title: `Small Stats - ${name}`,
+      ais,
+      file: `/smallstats_${name}.png`
+    })
   }
   catch(err) {
     console.dir(err);
@@ -145,7 +150,12 @@ app.get('/largestats/:name', async (req, res) => {
       }
     })
     const data = await fs.readFile(`stats_${name}.png`)
-    return res.end(data, 'binary')
+    await fs.writeFile(`public/largestats_${name}.png`, data)
+    return res.render('stats', {
+      title: `Large Stats - ${name}`,
+      ais,
+      file: `/largestats_${name}.png`
+    })
   }
   catch(err) {
     console.dir(err);
@@ -234,7 +244,7 @@ function pendingJobs(name) {
 async function generateGif(ai) {
   const modelFile = getModelFile(ai.name, ai.generation);
   const cmd = '../bin/hqn_quicknes ' + 'roms/' + ai.rom;
-  const gif = 'gifs/' + ai.name + "_" + ("00000" + ai.generation).slice(-5) + '.gif';
+  const gif = 'public/gifs/' + ai.name + "_" + ("00000" + ai.generation).slice(-5) + '.gif';
   let env = {
     'HUMAN': '0',
     'MODEL': modelFile,
@@ -353,7 +363,7 @@ app.post('/result/:job_id', async (req, res) => {
 
 
 async function initialize() {
-  const dirs = [ 'roms', 'scripts', 'ai', 'models', 'rollouts', 'gifs', 'saved_rollouts']
+  const dirs = [ 'roms', 'scripts', 'ai', 'models', 'rollouts', 'public', 'public/gifs', 'saved_rollouts']
   for(d of dirs) {
     try { await fs.mkdir(d) } catch(e) {}
   }
@@ -386,13 +396,27 @@ async function initialize() {
 }
 
 app.get('/gifz', async (req, res) => {
-  var gifs = await fs.readdir('gifs')
+  var gifs = await fs.readdir('public/gifs')
   gifs.sort()
   res.render('gifz', { gifs: gifs})
 })
 
+app.get('/gifz/:name', async (req, res) => {
+  const ai = ais[req.params.name]
+  if(!ai) return res.sendStatus(500)
+  var gifs = await fs.readdir('public/gifs')
+  gifs.sort()
+  const rx = new RegExp(ai.name + '_\\d+\\.gif')
+  gifs = gifs.filter(a => null != a.match(rx))
+  for(let i = 0; i < gifs.length; ++i) { 
+    gifs[i] = '/gifs/' + gifs[i]
+  }
+  console.log(gifs)
+  res.render('gifz', { ais, gifs })
+})
+
 app.get('/', async (req, res) => {
-  res.render('index', { title: 'Hey', message: 'Hello there!' })
+  res.render('index', { ais })
 })
 
 setInterval(() => {

@@ -1,0 +1,31 @@
+html
+	head
+		title AI Masterbrain Server xxx
+		link(rel='stylesheet' href='/bootstrap-3.4.1-dist/css/bootstrap.min.css')
+		script(src='/bootstrap-3.4.1-dist/js/bootstrap.min.js')
+	body
+		div.container-fluid
+			h1 Agents
+			table.table.table-striped
+				thead
+					tr
+						th Agent Name
+						th Generation
+						th Jobs/Gen
+						th View Gifz
+						th View Large
+						th View Small
+				tbody
+					each val, index in ais
+						tr
+							td= index
+							td= ais[index].generation
+							td= ais[index].jobs_per_generation
+							td
+								a(href='/gifz/' + ais[index].name) View Gifz
+							td
+								a(href='/largestats/' + ais[index].name) View Large
+							td
+								a(href='/smallstats/' + ais[index].name + '/5') View Small
+		div.container-fluid
+			block content
