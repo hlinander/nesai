@@ -76,7 +76,7 @@ plot_actions = function(data) {
 	actions <- last$actions
 	actions <- actions[1:min(500, length(actions))]
 	df <- data.frame(do.call(rbind, actions))
-	colnames(df) <- c("up", "down", "left", "right", "a", "b", "start", "select")
+	colnames(df) <- c("up", "down", "left", "right", "up_a", "up_b", "down_a", "down_b", "left_a", "left_b", "right_a", "right_b", "a", "b", "start", "select")
 	df$frame <- seq_len(nrow(df))
 	print(head(df, n=10))
 	melted <- melt(df, id.vars="frame", variable.name="button")

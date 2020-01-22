@@ -336,15 +336,44 @@ bool brain_on_frame(float *frame_reward)
 	int override = override_input(frame);
 	if(-1 == override)
 	{
+		size_t A = static_cast<size_t>(Action::A);
+		size_t B = static_cast<size_t>(Action::B);
+		size_t UP = static_cast<size_t>(Action::UP);
+		size_t UP_A = static_cast<size_t>(Action::UP_A);
+		size_t UP_B = static_cast<size_t>(Action::UP_B);
+		size_t DOWN = static_cast<size_t>(Action::DOWN);
+		size_t DOWN_A = static_cast<size_t>(Action::DOWN_A);
+		size_t DOWN_B = static_cast<size_t>(Action::DOWN_B);
+		size_t LEFT = static_cast<size_t>(Action::LEFT);
+		size_t LEFT_A = static_cast<size_t>(Action::LEFT_A);
+		size_t LEFT_B = static_cast<size_t>(Action::LEFT_B);
+		size_t RIGHT = static_cast<size_t>(Action::RIGHT);
+		size_t RIGHT_A = static_cast<size_t>(Action::RIGHT_A);
+		size_t RIGHT_B = static_cast<size_t>(Action::RIGHT_B);
+
 		gp_bits = 0;
-		gp_bits |= a[static_cast<size_t>(Action::A)] << 0;
-		gp_bits |= a[static_cast<size_t>(Action::B)] << 1;
-		// gp_bits |= a[static_cast<size_t>(Action::SELECT)] << 2;
-		// gp_bits |= a[static_cast<size_t>(Action::START)] << 3;
-		gp_bits |= a[static_cast<size_t>(Action::UP)] << 4;
-		gp_bits |= a[static_cast<size_t>(Action::DOWN)] << 5;
-		gp_bits |= a[static_cast<size_t>(Action::LEFT)] << 6;
-		gp_bits |= a[static_cast<size_t>(Action::RIGHT)] << 7;
+		gp_bits |= a[A] << 0;
+		gp_bits |= a[UP_A] << 0;
+		gp_bits |= a[DOWN_A] << 0;
+		gp_bits |= a[LEFT_A] << 0;
+		gp_bits |= a[RIGHT_A] << 0;
+		gp_bits |= a[B] << 1;
+		gp_bits |= a[UP_B] << 1;
+		gp_bits |= a[DOWN_B] << 1;
+		gp_bits |= a[LEFT_B] << 1;
+		gp_bits |= a[RIGHT_B] << 1;
+		gp_bits |= a[UP] << 4;
+		gp_bits |= a[UP_A] << 4;
+		gp_bits |= a[UP_B] << 4;
+		gp_bits |= a[DOWN] << 5;
+		gp_bits |= a[DOWN_A] << 5;
+		gp_bits |= a[DOWN_B] << 5;
+		gp_bits |= a[LEFT] << 6;
+		gp_bits |= a[LEFT_A] << 6;
+		gp_bits |= a[LEFT_B] << 6;
+		gp_bits |= a[RIGHT] << 7;
+		gp_bits |= a[RIGHT_A] << 7;
+		gp_bits |= a[RIGHT_B] << 7;
 	}
 	else
 	{

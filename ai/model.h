@@ -27,6 +27,14 @@ enum class Action {
     DOWN,
     LEFT,
     RIGHT,
+	UP_A,
+	UP_B,
+	DOWN_A,
+	DOWN_B,
+	LEFT_A,
+	LEFT_B,
+	RIGHT_A,
+	RIGHT_B,
     A,
     B,
     START,
@@ -96,9 +104,9 @@ struct Net : torch::nn::Module {
 };
 
 struct Model {
-	typedef Net<N_ACTIONS> NetType;
-	Model(float lr) : net{std::make_shared<NetType>()}, 
-					  value_net{std::make_shared<Net<1>>()}, 
+	typedef Net<ACTION_SIZE> NetType;
+	Model(float lr) : net{std::make_shared<NetType>()},
+					  value_net{std::make_shared<Net<1>>()},
 					  optimizer(net->parameters(), lr),
 					  value_optimizer(value_net->parameters(), lr)
 	{
@@ -203,16 +211,12 @@ struct Model {
 
 	ActionType get_action(StateType &s) {
 		auto tout = forward(s);
-		torch::Tensor out = torch::sigmoid(tout).to(torch::kCPU);
-		auto out_a = out.accessor<float,2>();
+		torch::Tensor out = torch::softmax(tout, 1);
+		torch::Tensor argmax = torch::argmax(out, 1).to(torch::kCPU);
+		auto argmax_a = argmax.accessor<long,1>();
         std::array<uint8_t, ACTION_SIZE> actions;
-        for(size_t i = 0; i < ACTION_SIZE; i++){
-			// std::cout << out_a[0][i] << ", ";
-			float r = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-            // actions[i] = out_a[0][i] > ACTION_THRESHOLD ? 1 : 0;
-            actions[i] = (r < out_a[0][i]) ? 1 : 0;
-        }
-		// std::cout << std::endl;
+		actions.fill(0);
+		actions[static_cast<size_t>(argmax_a[0])] = 1;
 		return actions;
 	}
 
