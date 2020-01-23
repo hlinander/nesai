@@ -69,7 +69,7 @@ app.get('/valuestats/:name', async (req, res) => {
     const name = req.params.name
     if(!name || !(name in ais)) return res.sendStatus(500)
 
-    let { stdout } = await exec(`ls -1t metrics/*.json | head -1`)
+    let { stdout } = await exec(`ls -1t metrics/${name}_*.json | head -1`)
     const files = stdout.split('\n').join(' ')
     {
     let cmd = `jq -s . ${files} > metrics_read_${name}.json`

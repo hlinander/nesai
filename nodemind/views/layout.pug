@@ -16,6 +16,7 @@ html
 						th View Gifz
 						th View Large
 						th View Small
+						th View valuenet
 				tbody
 					each val, index in ais
 						tr
@@ -28,5 +29,7 @@ html
 								a(href='/largestats/' + ais[index].name) View Large
 							td
 								a(href='/smallstats/' + ais[index].name + '/5') View Small
+							td
+								a(href='/valuestats/' + ais[index].name + '') View valuenet
 		div.container-fluid
 			block content
