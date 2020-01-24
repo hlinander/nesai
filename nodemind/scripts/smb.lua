@@ -107,12 +107,12 @@ function brain_get_reward(frame)
 		-- Penalize spazzing about like a fucking retard and not moving.
 		-- Essentially, make a 10px movement every 2 seconds or lose 10 pts / frame
 		--
-		if (mario_score - old_score) > 0 then
-			dscore = (mario_score - old_score) / 25.0
-			print(dscore)
-			reward = reward + dscore
-			old_score = mario_score
-        end
+		-- if (mario_score - old_score) > 0 then
+		-- 	dscore = (mario_score - old_score) / 25.0
+		-- 	print(dscore)
+		-- 	reward = reward + dscore
+		-- 	old_score = mario_score
+        -- end
 		-- if math.abs(last_absolute_x - absolute_x) < 10 then
 		-- 	idle_frames = idle_frames + 1
 		-- 	if idle_frames > 100 then

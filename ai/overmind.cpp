@@ -31,7 +31,17 @@ static int get_ppo_epochs()
 	return 3;
 }
 
-const float LR = 0.01;//0.00000001;
+static float get_learning_rate()
+{
+	const char *lr = getenv("LR");
+	if(lr)
+	{
+		return std::stof(lr);
+	}
+	return 0.001;
+}
+
+const float LR = get_learning_rate();
 static int BATCH_SIZE = get_batch_size();
 const int PPO_EPOCHS = get_ppo_epochs();
 const bool DEBUG = nullptr != getenv("DEBUG");
@@ -144,6 +154,8 @@ void update_model_softmax(Model &m, Model &experience, stat_map &stats, const fl
 	action_batch.resize(BATCH_SIZE * ACTION_SIZE);
     std::vector<long> action_indices;
 	action_indices.resize(BATCH_SIZE);
+
+    m.net->train();
 
 	for (int frame = 0; frame < experience.get_frames(); frame+=BATCH_SIZE) {
 		size_t actual_bs = std::min(BATCH_SIZE, experience.get_frames() - frame);
