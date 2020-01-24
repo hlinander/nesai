@@ -202,7 +202,7 @@ bool brain_headless()
 	return enabled && headless;
 }
 
-static float get_reward(uint32_t frame)
+static bool get_reward(uint32_t frame, float &ret)
 {
 	//
 	//j Check if we are good...?
@@ -214,16 +214,21 @@ static float get_reward(uint32_t frame)
 		std::cout << "LUA: Error running 'brain_get_reward': " << lua_tostring(L, -1) << std::endl;
 		exit(1);
 	}
+	if(lua_isnil(L, -1))
+	{
+		lua_pop(L, 1);
+		return false;
+	}
 	if(!lua_isnumber(L, -1))
 	{
 		std::cout << "LUA: 'brain_validate_frame' not returning an number" << std::endl;
 		exit(1);	
 	}
 	
-	float ret = static_cast<float>(lua_tonumber(L, -1));
+	ret = static_cast<float>(lua_tonumber(L, -1));
 	// std::cout << ret << std::endl;
 	lua_pop(L, 1);
-	return ret;
+	return true;
 }
 
 static int override_input(uint32_t frame)
@@ -318,7 +323,8 @@ bool brain_on_frame(float *frame_reward)
 		std::cout << "I should exit now..." << std::endl;
 		return false;
 	}
-	float reward = get_reward(frame);
+	float reward = 0;
+	bool save_frame = get_reward(frame, reward);
 	*frame_reward = reward;
 
 	StateType s;
@@ -331,7 +337,11 @@ bool brain_on_frame(float *frame_reward)
 		s[i*3 + RAM_SIZE + 2] = static_cast<float>((nes_screen[i]) & 255) / 255.0 - 0.5f;
 	}
 	ActionType a = model.get_action(s);
-	model.record_action(s, a, reward);
+	if(save_frame)
+	{
+		// std::cout << reward << std::endl;
+		model.record_action(s, a, reward);
+	}
 
 	int override = override_input(frame);
 	if(-1 == override)

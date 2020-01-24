@@ -65,7 +65,7 @@ end
 function brain_get_reward(frame)
 	local lives = read_cpu(0x75a)
 	if frame < 100 then
-		return 0
+		return nil
 	elseif frame == 100 then
 		old_lives = lives
 	end
@@ -75,6 +75,7 @@ function brain_get_reward(frame)
 	local level = read_cpu(0x760)
 	local page = read_cpu(0x71A)
 	local screenx = read_cpu(0x71c)
+	local marioy = read_cpu(0xCE)
 	local relx = read_cpu(0x3ad)
 	local speedx = read_int_cpu(0x57) / 0x28
 	local mario_score = 1000000 * read_cpu(0x7dd) 
@@ -87,18 +88,21 @@ function brain_get_reward(frame)
 
 	local absolute_x = page * 0x100 + screenx + relx
 	local xscore = ((page - old_page) * 0x100) + (screenx - old_screenx) + (relx - old_relx)
-	local reward = 0
+	local reward = -10
 
 	if screenx - old_screenx > 0 then
 		next_save_frame = next_save_frame + 1
     end
 
 	if 1 == read_cpu(0x770) and 3 == read_cpu(0x772) then
-		reward = xscore
-		-- if absolute_x > old_max_x then
-		-- 	reward = (absolute_x - old_max_x)
-		-- 	old_max_x = absolute_x
-		-- end
+		-- reward = xscore
+		-- print(marioy)
+		-- reward = 0x96 - marioy
+		-- print(reward)
+		if absolute_x > old_max_x then
+			reward = reward + absolute_x -- (absolute_x - old_max_x)
+			old_max_x = absolute_x
+		end
 		--
 		-- Penalize spazzing about like a fucking retard and not moving.
 		-- Essentially, make a 10px movement every 2 seconds or lose 10 pts / frame
@@ -172,7 +176,7 @@ function brain_get_reward(frame)
 	-- print(speedx)
 	-- return reward + speedx * 2
 	if frame < 200 then
-		return 0
+		return nil
     end
 	return reward
 end

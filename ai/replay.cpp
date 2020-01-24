@@ -4,7 +4,7 @@
 
 void replay(Model &m)
 {
-    Reward r = calculate_rewards(m);
+    calculate_rewards(m);
     initscr();
     start_color();
     std::cout << "Color pairs: " << COLOR_PAIRS << std::endl;
@@ -54,7 +54,7 @@ void replay(Model &m)
         }
         attron(COLOR_PAIR(1));
         mvprintw(0, 2 * 33, "frame: %d", i);
-        mvprintw(1, 2 * 33, "reward: %f", r.rewards[i]);
+        mvprintw(1, 2 * 33, "reward: %f", m.rewards[i]);
         mvprintw(2, 2 * 33, "imm. reward: %f", m.immidiate_rewards[i]);
 
         std::string keys;

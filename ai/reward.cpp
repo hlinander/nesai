@@ -32,12 +32,12 @@ std::vector<float> normalize_rewards(std::vector<float>& rewards) {
 
 	if(stddev > 0.0f) {
 		std::transform(normalized_rewards.begin(), normalized_rewards.end(), normalized_rewards.begin(),
-					[mean, stddev](float r) -> float { return (r) / stddev; });
+					[mean, stddev](float r) -> float { return (r - mean) / stddev; });
 	} 
 	return normalized_rewards;
 }
 
-Reward calculate_rewards(Model &experience) {
+float calculate_rewards(Model &experience) {
 	Reward ret;
 	ret.rewards.resize(experience.get_frames());
 	std::fill(std::begin(ret.rewards), std::end(ret.rewards), 0.0f);
@@ -48,16 +48,17 @@ Reward calculate_rewards(Model &experience) {
             // debug_log << "f " << frame << ": " << experience.immidiate_rewards[frame] << ", ";
         }
 		reward += experience.immidiate_rewards[frame];
-		reward *= 0.90;
+		reward *= 0.99;
 		ret.rewards[frame] = reward;
 	}
 	ret.total_reward = std::accumulate(ret.rewards.begin(), ret.rewards.end(), 0.0f);
-	// ret.rewards = normalize_rewards(ret.rewards);
-	ret.rewards = min_max_rewards(ret.rewards);
+	ret.rewards = normalize_rewards(ret.rewards);
+	// ret.rewards = min_max_rewards(ret.rewards);
+	experience.rewards = ret.rewards;
     // debug_log << "normed = [";
 	// for (int frame = experience.get_frames() - 1; frame >= 1; --frame) {
     //     debug_log << ret.rewards[frame] << ",";
     // }
 
-	return ret;
+	return ret.total_reward / static_cast<float>(experience.get_frames());
 }

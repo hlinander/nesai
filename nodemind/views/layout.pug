@@ -17,6 +17,7 @@ html
 						th View Large
 						th View Small
 						th View valuenet
+						th View rewards
 				tbody
 					each val, index in ais
 						tr
@@ -31,5 +32,7 @@ html
 								a(href='/smallstats/' + ais[index].name + '/5') View Small
 							td
 								a(href='/valuestats/' + ais[index].name + '') View valuenet
+							td
+								a(href='/rewards/' + ais[index].name + '') View rewards
 		div.container-fluid
 			block content

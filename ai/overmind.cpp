@@ -82,20 +82,61 @@ static std::string action_name(const ActionType &action)
 }
 
 void analyze_step(Model &after, Model &experience) {
-	Reward reward = calculate_rewards(experience);
+	// Reward reward = calculate_rewards(experience);
+    after.net->eval();
+    experience.net->eval();
     for(size_t frame = 0; frame < (size_t)experience.get_frames(); ++frame)
     {
-        auto prob_before = torch::sigmoid(experience.forward(experience.states[frame]));
-        auto prob_after = torch::sigmoid(after.forward(experience.states[frame]));
-        debug_log << "Reward: " << reward.rewards[frame] << std::endl;
-        debug_log << "Before: " << prob_before << std::endl;
-        debug_log << "After: " << prob_after << std::endl;
+        auto prob_before = torch::softmax(experience.forward(experience.states[frame]), 1).to(torch::kCPU);
+        auto prob_after = torch::softmax(after.forward(experience.states[frame]), 1).to(torch::kCPU);
+        auto pb = prob_before.accessor<float, 2>();
+        auto pa = prob_after.accessor<float, 2>();
+
+        debug_log << "Reward: " << experience.rewards[frame] << " ";
+        for(int i = 0; i < prob_before.sizes()[1]; ++i)
+        {
+            if(experience.actions[frame][i] == 1)
+            {
+                debug_log << " **[" << pb[0][i] << " -> " << pa[0][i] << "]**, ";
+            }
+            else
+            {
+                // debug_log << pb[0][i] << " -> " << pa[0][i] << ", ";
+            }
+        }
+        debug_log << std::endl;
+        // debug_log << "Reward: " << experience.rewards[frame] << std::endl;
+        // debug_log << "Before: " << prob_before << std::endl;
+        // debug_log << "After: " << prob_after << std::endl;
     }
+    debug_log << std::endl << std::flush;
 }
 
-float update_model_softmax(Model &m, Model &experience, stat_map &stats, const float avg_reward, bool debug) {
+void distill(Model &exp)
+{
+	float min = *std::min_element(exp.rewards.begin(), exp.rewards.end());
+	float max = *std::max_element(exp.rewards.begin(), exp.rewards.end());
+	float absmax = std::max(fabs(min), fabs(max));
+
+    size_t active_frames = 0;
+    for(int i=exp.get_frames() - 1; i >= 0; --i)
+    {
+        if(fabs(exp.rewards[i]) < absmax * 0.1)
+        {
+            //exp.remove_frame(i);
+            exp.rewards[i] = 0.0f;
+        }
+        else
+        {
+            active_frames++;
+        }
+    }
+    std::cout << "ACTIVE FRAMES: " << active_frames << std::endl;
+}
+
+void update_model_softmax(Model &m, Model &experience, stat_map &stats, const float avg_reward, bool debug) {
 	torch::Tensor loss = torch::tensor({0.0f});
-	Reward reward = calculate_rewards(experience);
+	// Reward reward = calculate_rewards(experience);
 
 	std::vector<float> rewards_batch;
 	rewards_batch.resize(BATCH_SIZE);
@@ -115,7 +156,7 @@ float update_model_softmax(Model &m, Model &experience, stat_map &stats, const f
 		auto old_logp = experience.forward_batch_nice(frame, frame + actual_bs);
 
 		for(size_t i = 0; i < actual_bs; ++i) {
-            rewards_batch[i] = reward.rewards[frame + i];
+            rewards_batch[i] = experience.rewards[frame + i];
             for(size_t j = 0; j < ACTION_SIZE; ++j) {
                 action_batch[i * ACTION_SIZE + j] = experience.actions[frame + i][j];
                 if(experience.actions[frame + i][j] == 1)
@@ -127,7 +168,7 @@ float update_model_softmax(Model &m, Model &experience, stat_map &stats, const f
 
 		auto trewards = torch::from_blob(static_cast<void*>(rewards_batch.data()), {(long)actual_bs, 1}, torch::kFloat32);
         auto trewards_gpu = trewards.to(m.net->device);
-        auto trewards_minus_V = trewards_gpu - v.detach(); //torch::clamp(v, 0.0f, 10000.0f);
+        auto trewards_minus_V = trewards_gpu;// - v.detach(); //torch::clamp(v, 0.0f, 10000.0f);
 		auto torch_actions = torch::from_blob(static_cast<void*>(action_batch.data()), {(long)actual_bs, ACTION_SIZE}, torch::kFloat32);
 		auto torch_action_indices = torch::from_blob(static_cast<void*>(action_indices.data()), {(long)actual_bs, 1}, torch::kLong);
         auto gpu_actions = torch_actions.to(m.net->device);
@@ -166,17 +207,17 @@ float update_model_softmax(Model &m, Model &experience, stat_map &stats, const f
 
 	DEBUG("Loss backwards\n");
 	DEBUG("Returning...\n");
-	return reward.total_reward;
 }
 
-float update_model(Model &m, Model &experience, stat_map &stats, const float avg_reward, bool debug) {
+void update_model(Model &m, Model &experience, stat_map &stats, const float avg_reward, bool debug) {
 	torch::Tensor loss = torch::tensor({0.0f});
-	Reward reward = calculate_rewards(experience);
+	// Reward reward = calculate_rewards(experience);
 
 	std::vector<float> rewards_batch;
 	rewards_batch.resize(BATCH_SIZE);
 	std::vector<float> action_batch;
 	action_batch.resize(BATCH_SIZE * ACTION_SIZE);
+    m.net->train();
 
 	for (int frame = 0; frame < experience.get_frames(); frame+=BATCH_SIZE) {
 		size_t actual_bs = std::min(BATCH_SIZE, experience.get_frames() - frame);
@@ -189,7 +230,7 @@ float update_model(Model &m, Model &experience, stat_map &stats, const float avg
 		auto old_p = torch::sigmoid(experience.forward_batch_nice(frame, frame + actual_bs));
 
 		for(size_t i = 0; i < actual_bs; ++i) {
-            rewards_batch[i] = reward.rewards[frame + i];
+            rewards_batch[i] = experience.rewards[frame + i];
             for(size_t j = 0; j < ACTION_SIZE; ++j) {
                 action_batch[i * ACTION_SIZE + j] = experience.actions[frame + i][j];
             }
@@ -225,18 +266,17 @@ float update_model(Model &m, Model &experience, stat_map &stats, const float avg
 
 	DEBUG("Loss backwards\n");
 	DEBUG("Returning...\n");
-	return reward.total_reward;
+	// return reward.total_reward;
 }
 
 
 int main(int argc, const char *argv[])
 {
     srand(time(0));
-    if(DEBUG)
-    {
-        debug_log.open("overmind.log");
-    }
-    debug_log.open("doom.log", std::ofstream::app);
+    // if(DEBUG)
+    // {
+    // }
+    // debug_log.open("doom.log", std::ofstream::app);
 
     if(argc < 2)
     {
@@ -295,6 +335,8 @@ int main(int argc, const char *argv[])
         constexpr size_t arg_generation = 5;
         constexpr size_t arg_name = 6;
         std::cout << "Update!" << std::endl;
+        std::experimental::filesystem::create_directories("logs/");
+        debug_log.open(std::string("logs/overmind") + argv[arg_generation] + ".log");
         Benchmark full_ud("full_update");
         Model m(LR);
         Benchmark full_ud3("full_update3");
@@ -329,20 +371,17 @@ int main(int argc, const char *argv[])
         }
 
         stat_map sm;
-        int total_frames = 0;
-        float reward = 0;
-        int n_rewards = 0;
+        float mean_reward = 0;
         std::cout << "Starting updates" << std::endl;
         Model agg_experiences(LR);
         {
             Benchmark exp_agg("Experience aggregation");
             for(auto &e : experiences)
             {
+                mean_reward = calculate_rewards(e);
                 agg_experiences.append_experience(e);
-                // reward += update_model(m, e, sm, 0.0, false);
-                // ++n_rewards;
-                // total_frames += e.get_frames();
             }
+            // distill(agg_experiences);
         }
 		for(int epoch = 0; epoch < PPO_EPOCHS; epoch++) {
 			Benchmark bepoch{"epoch"};
@@ -350,9 +389,7 @@ int main(int argc, const char *argv[])
             m.value_optimizer.zero_grad();
             // for(auto &e : experiences)
             // {
-            reward += update_model_softmax(m, agg_experiences, sm, 0.0, false);
-            ++n_rewards;
-            total_frames += agg_experiences.get_frames();
+            update_model_softmax(m, agg_experiences, sm, 0.0, false);
             // }
 			m.optimizer.step();
 			m.value_optimizer.step();
@@ -370,6 +407,7 @@ int main(int argc, const char *argv[])
 
             }
         }
+        analyze_step(m, experiences[0]);
 #ifndef NO_HAMPUS
         {
             Benchmark hampe_dbg("hampe_dbg");
@@ -378,7 +416,7 @@ int main(int argc, const char *argv[])
             json["parameter_stats"] = nlohmann::json({});
             json["parameters"] = nlohmann::json({});
             json["dparameters"] = nlohmann::json({});
-            json["rewards"] = calculate_rewards(experiences[0]).rewards;
+            json["rewards"] = experiences[0].rewards;
             json["actions"] = experiences[0].actions;
             for(auto &ref : np.pairs()) {
                 std::cout << ref.first << std::endl;
@@ -394,7 +432,7 @@ int main(int argc, const char *argv[])
                 json["parameter_stats"][ref.first]["mean"] = ref.second.mean().item<float>();
                 json["parameter_stats"][ref.first]["stddev"] = ref.second.std().item<float>();
             }
-            json["mean_reward"] = reward / static_cast<float>(n_rewards);
+            json["mean_reward"] = mean_reward;
             std::vector<float> values;
             values.resize(experiences[0].get_frames());
             for (int frame = 0; frame < experiences[0].get_frames(); frame+=BATCH_SIZE) {

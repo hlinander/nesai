@@ -216,7 +216,7 @@ struct Model {
 		torch::Tensor out = torch::softmax(tout, 1).to(torch::kCPU);
 		torch::Tensor argmax = torch::argmax(out, 1).to(torch::kCPU);
 		torch::Tensor sample = torch::multinomial(out, 1, true, nullptr);
-		auto argmax_a = argmax.accessor<long,1>();
+		// auto argmax_a = argmax.accessor<long,1>();
 		// std::cout << out << std::endl;
 		// std::cout << sample << std::endl;
 		// std::cout << "NEW SAMPLE" << std::endl;
@@ -252,6 +252,16 @@ struct Model {
 		actions.insert(actions.end(), m.actions.begin(), m.actions.end());
 		one_hot_actions.insert(one_hot_actions.end(), m.one_hot_actions.begin(), m.one_hot_actions.end());
 		immidiate_rewards.insert(immidiate_rewards.end(), m.immidiate_rewards.begin(), m.immidiate_rewards.end());
+		rewards.insert(rewards.end(), m.rewards.begin(), m.rewards.end());
+	}
+
+	void remove_frame(size_t frame)
+	{
+		actions.erase(actions.begin() + frame);
+		one_hot_actions.erase(one_hot_actions.begin() + frame);
+		states.erase(states.begin() + frame);
+		time_stamps.erase(time_stamps.begin() + frame);
+		immidiate_rewards.erase(immidiate_rewards.begin() + frame);
 	}
 
 	ActionType saved_action(int frame) {
@@ -272,4 +282,5 @@ struct Model {
 	std::vector<StateType> states;
 	std::vector<uint32_t> time_stamps;
 	std::vector<float> immidiate_rewards;
+	std::vector<float> rewards;
 };

@@ -135,6 +135,20 @@ plot_all_epochs <- function() {
 	plot_all(data, plot_file)
 }
 
+plot_all_rewards <- function() {
+	data_file <- Sys.getenv("PLOT_DATA_FILE")
+	plot_file <- Sys.getenv("PLOT_FILE")
+	data <- fromJSON(file=data_file)
+	mr <- plot_avg_rewards(data)
+	rewards <- plot_rewards(data)
+	lengths <- plot_rollout_lengths(data)
+	lay <- rbind(c(1),
+				 c(2),
+				 c(3))
+	plot <- grid.arrange(mr, rewards, lengths, nrow=3, layout_matrix=lay)
+	ggsave(plot_file, plot=plot, device="png", width=30, height=10)
+}
+
 # plot_all_epochs()
 
 plot_value_vs_reward <- function(data) {

@@ -171,6 +171,33 @@ app.get('/largestats/:name', async (req, res) => {
   }
 });
 
+app.get('/rewards/:name', async (req, res) => {
+  try {
+    const name = req.params.name
+    if(!name || !(name in ais)) return res.sendStatus(500)
+    //await fs.copyFile("metrics.json", "metrics_read.json")
+    await exec(`jq -s . metrics/${name}_*.json > metrics_read_${name}.json`)
+    await exec("R --no-save --no-restore < plot_rewards.r",
+    {
+      env: {
+        PLOT_DATA_FILE: `metrics_read_${name}.json`,
+        PLOT_FILE: `rewards_${name}.png`
+      }
+    })
+    const data = await fs.readFile(`rewards_${name}.png`)
+    await fs.writeFile(`public/rewards_${name}.png`, data)
+    return res.render('stats', {
+      title: `Rewards - ${name}`,
+      ais,
+      file: `/rewards_${name}.png`
+    })
+  }
+  catch(err) {
+    console.dir(err);
+    return res.send(err)
+  }
+});
+
 app.post('/newai', async (req, res) => {
   let {name, rollouts, jobs_per_generation, rom, script} = req.body
   if(!name || !rollouts || !rom || !script) return res.sendStatus(500)

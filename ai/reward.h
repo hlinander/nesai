@@ -7,4 +7,4 @@ struct Reward {
 };
 
 std::vector<float> normalize_rewards(std::vector<float>& rewards);
-Reward calculate_rewards(Model &experience);
+float calculate_rewards(Model &experience);

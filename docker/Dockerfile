@@ -42,3 +42,5 @@ RUN apt install -y python3-pip
 RUN pip3 install mysql-connector-python requests
 RUN apt install -y jq
 RUN apt install -y gettext-base
+
+RUN echo "install.packages('feather')" | R --no-save
