@@ -26,6 +26,7 @@ $DOCKER_COMMAND run \
 	-e "RESUME=$RESUME" \
 	-e "AIS=$AIS" \
 	-e "JOBS=$JOBS" \
+	-e "LR=$LR" \
 	-e "OMP_NUM_THREADS=1" \
 	--rm -it \
 	-v $(pwd):/nesai \

@@ -347,6 +347,7 @@ int main(int argc, const char *argv[])
         constexpr size_t arg_generation = 5;
         constexpr size_t arg_name = 6;
         std::cout << "Update!" << std::endl;
+        std::cout << "Learning rate: " << LR << std::endl;
         std::experimental::filesystem::create_directories("logs/");
         debug_log.open(std::string("logs/overmind") + argv[arg_generation] + ".log");
         Benchmark full_ud("full_update");
