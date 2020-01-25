@@ -3,6 +3,7 @@
 #include <unordered_map>
 #include <algorithm>
 #include <experimental/filesystem>
+#include <stdexcept>
 #include "model.h"
 #include "bm.h"
 #include "json.hpp"
@@ -33,12 +34,20 @@ static int get_ppo_epochs()
 
 static float get_learning_rate()
 {
+    const float default_lr = 0.001;
 	const char *lr = getenv("LR");
 	if(lr)
 	{
-		return std::stof(lr);
+        try {
+		    return std::stof(lr);
+        }
+        catch(const std::invalid_argument& ia)
+        {
+            std::cout << "INVALID LEARNING RATE" << std::endl;
+            return default_lr;
+        }
 	}
-	return 0.001;
+	return default_lr;
 }
 
 const float LR = get_learning_rate();
@@ -465,12 +474,17 @@ int main(int argc, const char *argv[])
         }
 #ifndef NO_HAMPUS
         {
-            std::stringstream hampe_file;
+            std::stringstream tmp_file;
+            std::stringstream metric_file;
+            std::experimental::filesystem::path p = std::experimental::filesystem::current_path();
             Benchmark hampe2("hampe2");
-            std::experimental::filesystem::create_directories("metrics/");
-            hampe_file << std::string("metrics/") << argv[arg_name] << "_" << argv[arg_generation] << ".json";
-            std::ofstream out(hampe_file.str());
+            std::experimental::filesystem::create_directories(p/"metrics/");
+            std::experimental::filesystem::create_directories(p/"tmp_metrics/");
+            tmp_file << std::string("tmp_metrics/") << argv[arg_name] << "_" << argv[arg_generation] << ".json";
+            metric_file << std::string("metrics/") << argv[arg_name] << "_" << argv[arg_generation] << ".json";
+            std::ofstream out(tmp_file.str());
             out << std::setw(4) << json << std::endl;
+            std::experimental::filesystem::rename(p/tmp_file.str(), p/metric_file.str());
         }
 #endif
     }

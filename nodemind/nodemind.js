@@ -15,6 +15,7 @@ const scripts = {}
 const roms = {}
 const models = {}
 const jobs = {}
+const shouldPlotAIs = []
 
 app.use(bodyParser.json({limit: '5000mb'}));
 app.use(bodyParser.raw({
@@ -69,28 +70,6 @@ app.get('/valuestats/:name', async (req, res) => {
     const name = req.params.name
     if(!name || !(name in ais)) return res.sendStatus(500)
 
-    let { stdout } = await exec(`ls -1t metrics/${name}_*.json | head -1`)
-    const files = stdout.split('\n').join(' ')
-    {
-    let cmd = `jq -s . ${files} > metrics_read_${name}.json`
-    console.log(cmd)
-    let { stdout } = await exec(cmd)
-    console.log(stdout)
-    }
-    {
-    let cmd = "R --no-save --no-restore < plot_val.r"
-    console.log(cmd)
-    let { stdout } = await exec(cmd,
-    {
-      env: {
-        PLOT_DATA_FILE: `metrics_read_${name}.json`,
-        PLOT_FILE: `valstats_${name}.png`
-      }
-    })
-    console.log(stdout)
-    }
-    const data = await fs.readFile(`valstats_${name}.png`)
-    await fs.writeFile(`public/valuestats_${name}.png`, data)
     return res.render('stats', {
       title: `Value Stats - ${name}`,
       ais,
@@ -109,29 +88,6 @@ app.get('/smallstats/:name/:nGenerations', async (req, res) => {
   try {
     const name = req.params.name
     if(!name || !(name in ais)) return res.sendStatus(500)
-    //await fs.copyFile("metrics.json", "metrics_read.json")
-    let { stdout } = await exec(`ls -1t metrics/${name}_*.json | head -${n}`)
-    const files = stdout.split('\n').join(' ')
-    {
-    let cmd = `jq -s . ${files} > metrics_read_${name}.json`
-    console.log(cmd)
-    let { stdout } = await exec(cmd)
-    console.log(stdout)
-    }
-    {
-    let cmd = "R --no-save --no-restore < plot_stats.r"
-    console.log(cmd)
-    let { stdout } = await exec(cmd,
-    {
-      env: {
-        PLOT_DATA_FILE: `metrics_read_${name}.json`,
-        PLOT_FILE: `smallstats_${name}.png`
-      }
-    })
-    console.log(stdout)
-    }
-    const data = await fs.readFile(`smallstats_${name}.png`)
-    await fs.writeFile(`public/smallstats_${name}.png`, data)
     return res.render('stats', {
       title: `Small Stats - ${name}`,
       ais,
@@ -144,21 +100,97 @@ app.get('/smallstats/:name/:nGenerations', async (req, res) => {
   }
 });
 
+async function generateValuestats(ai)
+{
+    var name = ai.name;
+    let { stdout } = await exec(`ls -1t metrics/${name}_*.json | head -1`)
+    const files = stdout.split('\n').join(' ')
+    {
+    let cmd = `jq -s . ${files} > metrics_read_value_${name}.json`
+    let { stdout } = await exec(cmd)
+    }
+    {
+    let cmd = "R --no-save --no-restore < plot_val.r"
+    let { stdout } = await exec(cmd,
+    {
+      env: {
+        PLOT_DATA_FILE: `metrics_read_value_${name}.json`,
+        PLOT_FILE: `valstats_${name}.png`
+      }
+    })
+    }
+    const data = await fs.readFile(`valstats_${name}.png`)
+    await fs.writeFile(`public/valuestats_${name}.png`, data)
+}
+
+async function generateSmallstats(ai, n)
+{
+    var name = ai.name;
+    let { stdout } = await exec(`ls -1t metrics/${name}_*.json | head -${n}`)
+    const files = stdout.split('\n').join(' ')
+    {
+    let cmd = `jq -s . ${files} > metrics_read_small_${name}.json`
+    let { stdout } = await exec(cmd)
+    }
+    {
+    let cmd = "R --no-save --no-restore < plot_stats.r"
+    let { stdout } = await exec(cmd,
+    {
+      env: {
+        PLOT_DATA_FILE: `metrics_read_small_${name}.json`,
+        PLOT_FILE: `smallstats_${name}.png`
+      }
+    })
+    }
+    var out_path = `smallstats_${name}.png`;
+    const data = await fs.readFile(`smallstats_${name}.png`)
+    await fs.writeFile("public/" + out_path, data)
+    return {
+      path: "public/" + out_path,
+      url: "/" + out_path
+    }
+}
+
+async function generateLargestats(ai)
+{
+    var name = ai.name;
+    await exec(`jq -s . metrics/${name}_*.json > metrics_read_large_${name}.json`)
+    await exec("R --no-save --no-restore < plot_stats.r",
+    {
+      env: {
+        PLOT_DATA_FILE: `metrics_read_large_${name}.json`,
+        PLOT_FILE: `stats_${name}.png`
+      }
+    })
+    const data = await fs.readFile(`stats_${name}.png`)
+    var out_path = `largestats_${name}.png`;
+    await fs.writeFile("public/" + out_path, data)
+    return {
+      path: "public/" + out_path,
+      url: "/" + out_path
+    }
+}
+
+async function generateRewards(ai)
+{
+  var name = ai.name;
+  await exec(`jq -s . metrics/${name}_*.json > metrics_read_reward_${name}.json`)
+  await exec("R --no-save --no-restore < plot_rewards.r",
+  {
+    env: {
+      PLOT_DATA_FILE: `metrics_read_reward_${name}.json`,
+      PLOT_FILE: `rewards_${name}.png`
+    }
+  })
+  const data = await fs.readFile(`rewards_${name}.png`)
+  await fs.writeFile(`public/rewards_${name}.png`, data)
+}
+
 app.get('/largestats/:name', async (req, res) => {
   try {
     const name = req.params.name
     if(!name || !(name in ais)) return res.sendStatus(500)
     //await fs.copyFile("metrics.json", "metrics_read.json")
-    await exec(`jq -s . metrics/${name}_*.json > metrics_read_${name}.json`)
-    await exec("R --no-save --no-restore < plot_stats.r",
-    {
-      env: {
-        PLOT_DATA_FILE: `metrics_read_${name}.json`,
-        PLOT_FILE: `stats_${name}.png`
-      }
-    })
-    const data = await fs.readFile(`stats_${name}.png`)
-    await fs.writeFile(`public/largestats_${name}.png`, data)
     return res.render('stats', {
       title: `Large Stats - ${name}`,
       ais,
@@ -175,17 +207,6 @@ app.get('/rewards/:name', async (req, res) => {
   try {
     const name = req.params.name
     if(!name || !(name in ais)) return res.sendStatus(500)
-    //await fs.copyFile("metrics.json", "metrics_read.json")
-    await exec(`jq -s . metrics/${name}_*.json > metrics_read_${name}.json`)
-    await exec("R --no-save --no-restore < plot_rewards.r",
-    {
-      env: {
-        PLOT_DATA_FILE: `metrics_read_${name}.json`,
-        PLOT_FILE: `rewards_${name}.png`
-      }
-    })
-    const data = await fs.readFile(`rewards_${name}.png`)
-    await fs.writeFile(`public/rewards_${name}.png`, data)
     return res.render('stats', {
       title: `Rewards - ${name}`,
       ais,
@@ -276,10 +297,22 @@ function pendingJobs(name) {
   return pending
 }
 
+async function generateMetrics(ai)
+{
+try {
+    const name = req.params.name;
+    await exec(`jq -s . metrics/${name}_*.json > metrics_read_${name}.json`)
+  }
+  catch(err) {
+    console.dir(err);
+    return res.send(err)
+  }
+}
+
 async function generateGif(ai) {
   const modelFile = getModelFile(ai.name, ai.generation);
   const cmd = '../bin/hqn_quicknes ' + 'roms/' + ai.rom;
-  const gif = 'public/gifs/' + ai.name + "_" + ("00000" + ai.generation).slice(-5) + '.gif';
+  const gif = 'gifs/' + ai.name + "_" + ("00000" + ai.generation).slice(-5) + '.gif';
   let env = {
     'HUMAN': '0',
     'MODEL': modelFile,
@@ -296,8 +329,8 @@ async function generateGif(ai) {
   // console.dir(env)
   try {
     const { stdout, stderr } = await exec(cmd, {env: env});
-
-    console.log(stdout)
+    fs.rename(gif, "public/" + gif);
+    // console.log(stdout)
   }
   catch(e)
   {
@@ -318,6 +351,7 @@ app.get('/job/:name', (req, res) => {
   return res.send(createJob(ai))
 })
 
+
 async function advanceGeneration(ai) {
   const modelfile = getModelFile(ai.name, ai.generation + 1)
   console.log('../bin/overmind update '
@@ -334,7 +368,7 @@ async function advanceGeneration(ai) {
     + ai.generation + ' '
     + ai.name)
 
-  console.log(stdout);
+  // console.log(stdout);
     }
     catch(e)
     {
@@ -342,12 +376,12 @@ async function advanceGeneration(ai) {
     }
 
   fs.unlink(getExperienceFile(ai.name))
-  console.log("going to delete files")
+  // console.log("going to delete files")
   files = await fs.readdir('./rollouts/');
   const rx = new RegExp('^' + ai.name + '\\.\\d+$')
   var saved = false;
   for(let i = 0; i < files.length; ++i) {
-    console.log(files[i]);
+    // console.log(files[i]);
     if(files[i].match(rx)) {
       if(!saved)
       {
@@ -361,7 +395,6 @@ async function advanceGeneration(ai) {
       }
     }
   }
-  await generateGif(ai);
   // Set new model as active
   delete models[ai.name]
   const data = await fs.readFile(modelfile)
@@ -370,6 +403,7 @@ async function advanceGeneration(ai) {
   ai.jobs_done = 0
   ++ai.generation
   await saveAI(ai)
+  shouldPlotAIs.push(ai.name);
 }
 
 app.post('/result/:job_id', async (req, res) => {
@@ -446,7 +480,7 @@ app.get('/gifz/:name', async (req, res) => {
   for(let i = 0; i < gifs.length; ++i) { 
     gifs[i] = '/gifs/' + gifs[i]
   }
-  console.log(gifs)
+  // console.log(gifs)
   res.render('gifz', { ais, gifs })
 })
 
@@ -468,8 +502,31 @@ setInterval(() => {
   if(nuke.length) console.log('Number of jobs timed out', nuke.length)
 }, 100);
 
+function generatePlots() {
+  if(shouldPlotAIs.length > 0)
+  {
+    var name = shouldPlotAIs.pop();
+    console.log("Will generate plots for " + name)
+    Promise.all([
+      generateGif(ais[name]),
+      generateLargestats(ais[name]),
+      generateSmallstats(ais[name], 5),
+      generateValuestats(ais[name]),
+      generateRewards(ais[name])
+    ]).then(() => {
+      console.log("Plots for " + name + " done!");
+      generatePlots();
+    });
+  }
+  else {
+    console.log("No more plots to do...");
+    setTimeout(() => generatePlots(), 1000);
+  }
+};
+
 app.listen(port, async () => {
   console.log(`Example app listening on port ${port}!`)
   await initialize()
+  generatePlots();
 })
 
