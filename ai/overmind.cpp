@@ -444,6 +444,8 @@ int main(int argc, const char *argv[])
 
             auto np = m.net->named_parameters();
             auto oldp = experiences[0].net->named_parameters();
+            std::list<std::vector<float>> p_list;
+            std::list<std::vector<float>> dp_list;
 
             for(auto &ref : np.pairs())
             {
@@ -455,11 +457,11 @@ int main(int argc, const char *argv[])
                 // Pointless dumb memcpy...
                 //
                 int64_t nel = std::min(cp.numel(), static_cast<int64_t>(1000));
-                std::vector<float> p(cp.data_ptr<float>(), cp.data_ptr<float>() + nel);
-                std::vector<float> dp(dcp.data_ptr<float>(), dcp.data_ptr<float>() + nel);
+                p_list.emplace_back(std::vector<float>(cp.data_ptr<float>(), cp.data_ptr<float>() + nel));
+                dp_list.emplace_back(std::vector<float>(dcp.data_ptr<float>(), dcp.data_ptr<float>() + nel));
 
-                rds["parameters"][ref.first]["values"] = &p;
-                rds["dparameters"][ref.first]["values"] = &dp;
+                rds["parameters"][ref.first]["values"] = &p_list.back();
+                rds["dparameters"][ref.first]["values"] = &dp_list.back();
                 rds["parameter_stats"][ref.first]["mean"] = ref.second.mean().item<float>();
                 rds["parameter_stats"][ref.first]["stddev"] = ref.second.std().item<float>();
             }
