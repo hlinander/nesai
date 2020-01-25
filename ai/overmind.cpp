@@ -437,31 +437,39 @@ int main(int argc, const char *argv[])
 #ifndef NO_HAMPUS
         {
             Benchmark hampe_dbg("hampe_dbg");
+            rds_data rds;
+
+            rds["rewards"] = &experiences[0].rewards;
+            rds["actions"] = &experiences[0].actions;
+
             auto np = m.net->named_parameters();
             auto oldp = experiences[0].net->named_parameters();
-            json["parameter_stats"] = nlohmann::json({});
-            json["parameters"] = nlohmann::json({});
-            json["dparameters"] = nlohmann::json({});
-            json["rewards"] = experiences[0].rewards;
-            json["actions"] = experiences[0].actions;
-            for(auto &ref : np.pairs()) {
+
+            for(auto &ref : np.pairs())
+            {
                 std::cout << ref.first << std::endl;
                 std::cout << "mean: " << ref.second.mean().item<float>() << " std: " << ref.second.std().item<float>() << std::endl;
                 auto cp = ref.second.to(torch::kCPU);
                 auto dcp = (ref.second - oldp[ref.first]).to(torch::kCPU);
-
+                //
+                // Pointless dumb memcpy...
+                //
                 int64_t nel = std::min(cp.numel(), static_cast<int64_t>(1000));
                 std::vector<float> p(cp.data_ptr<float>(), cp.data_ptr<float>() + nel);
                 std::vector<float> dp(dcp.data_ptr<float>(), dcp.data_ptr<float>() + nel);
-                json["parameters"][ref.first]["values"] = p;
-                json["dparameters"][ref.first]["values"] = dp;
-                json["parameter_stats"][ref.first]["mean"] = ref.second.mean().item<float>();
-                json["parameter_stats"][ref.first]["stddev"] = ref.second.std().item<float>();
+
+                rds["parameters"][ref.first]["values"] = &p;
+                rds["dparameters"][ref.first]["values"] = &dp;
+                rds["parameter_stats"][ref.first]["mean"] = ref.second.mean().item<float>();
+                rds["parameter_stats"][ref.first]["stddev"] = ref.second.std().item<float>();
             }
-            json["mean_reward"] = mean_reward;
+
+            rds["mean_reward"] = mean_reward;
+
             std::vector<float> values;
             values.resize(experiences[0].get_frames());
-            for (int frame = 0; frame < experiences[0].get_frames(); frame+=BATCH_SIZE) {
+            for(int frame = 0; frame < experiences[0].get_frames(); frame+=BATCH_SIZE)
+            {
                 size_t actual_bs = std::min(BATCH_SIZE, experiences[0].get_frames() - frame);
                 if(actual_bs == 1) {
                     break;
@@ -469,28 +477,30 @@ int main(int argc, const char *argv[])
                 auto v = m.value_net->forward(experiences[0].get_batch(frame, frame + actual_bs)).to(torch::kCPU);
                 std::copy(v.data_ptr<float>(), v.data_ptr<float>() + actual_bs, values.begin() + frame);
             }
-            json["values"] = values;
+            rds["values"] = &values;
+
+            std::stringstream tmp_file;
+            std::stringstream metric_file;
+            std::experimental::filesystem::path p = std::experimental::filesystem::current_path();
+            std::experimental::filesystem::create_directories(p/"metrics/");
+            std::experimental::filesystem::create_directories(p/"tmp_metrics/");
+            tmp_file << std::string("tmp_metrics/") << argv[arg_name] << "_" << argv[arg_generation] << ".rds";
+            metric_file << std::string("metrics/") << argv[arg_name] << "_" << argv[arg_generation] << ".rds";
+            {
+                std::ofstream out(tmp_file.str());
+                rds.save(out);
+
+                std::stringstream ss;
+                ss << "gzip -f " << tmp_file;
+                system(ss.str().c_str());
+            }
+            std::experimental::filesystem::rename(p/tmp_file.str(), p/metric_file.str());
         }
 #endif
         {
             Benchmark save("savefile");
             m.save_file(argv[4]);
         }
-#ifndef NO_HAMPUS
-        {
-            std::stringstream tmp_file;
-            std::stringstream metric_file;
-            std::experimental::filesystem::path p = std::experimental::filesystem::current_path();
-            Benchmark hampe2("hampe2");
-            std::experimental::filesystem::create_directories(p/"metrics/");
-            std::experimental::filesystem::create_directories(p/"tmp_metrics/");
-            tmp_file << std::string("tmp_metrics/") << argv[arg_name] << "_" << argv[arg_generation] << ".json";
-            metric_file << std::string("metrics/") << argv[arg_name] << "_" << argv[arg_generation] << ".json";
-            std::ofstream out(tmp_file.str());
-            out << std::setw(4) << json << std::endl;
-            std::experimental::filesystem::rename(p/tmp_file.str(), p/metric_file.str());
-        }
-#endif
     }
     else
     {

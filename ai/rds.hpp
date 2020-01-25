@@ -64,8 +64,9 @@ struct rds_data
 	{
 		object = 0,
 		flt,
-		flt_arr,
-		flt_arr_arr
+		flt_vec,
+		flt_vec_vec,
+		flt_vec_arr16
 	};
 
 	rds_data()
@@ -96,14 +97,21 @@ struct rds_data
 	rds_data &operator =(const std::vector<float> *p)
 	{
 		m_data.ptr = (void *)p;
-		m_type = rds_type::flt_arr;
+		m_type = rds_type::flt_vec;
 		return *this;
 	}
 
 	rds_data &operator =(const std::vector<std::vector<float>> *p)
 	{
 		m_data.ptr = (void *)p;
-		m_type = rds_type::flt_arr_arr;
+		m_type = rds_type::flt_vec_vec;
+		return *this;
+	}
+
+	rds_data &operator =(const std::vector<std::array<uint8_t, 16>> *p)
+	{
+		m_data.ptr = (void *)p;
+		m_type = rds_type::flt_vec_arr16;
 		return *this;
 	}
 
@@ -138,7 +146,8 @@ private:
 		out.write(s, strlen(s));
 	}
 
-	void write_float_array(std::ofstream &out, const std::vector<float> &f)
+	template <class T>
+	void write_float_array(std::ofstream &out, const T &f)
 	{
 		write_int<uint16_t>(out, 0x00);
 		write_int<uint16_t>(out, 0x0E);
@@ -180,14 +189,25 @@ private:
 			write_int<uint32_t>(out, 1);
 			write_int<uint64_t>(out, m_data.v);
 		}
-		else if(rds_type::flt_arr == m_type)
+		else if(rds_type::flt_vec == m_type)
 		{
 			auto &v = *(const std::vector<float> *)m_data.ptr;
 			write_float_array(out, v);
 		}
-		else if(rds_type::flt_arr_arr == m_type)
+		else if(rds_type::flt_vec_vec == m_type)
 		{
 			auto &v = *(const std::vector<std::vector<float>> *)m_data.ptr;
+			write_int<uint16_t>(out, 0x00);
+			write_int<uint16_t>(out, 0x13);
+			write_int<uint32_t>(out, v.size());
+			for(auto &ref : v)
+			{
+				write_float_array(out, ref);
+			}
+		}
+		else if(rds_type::flt_vec_arr16 == m_type)
+		{
+			auto &v = *(const std::vector<std::array<uint8_t, 16>> *)m_data.ptr;
 			write_int<uint16_t>(out, 0x00);
 			write_int<uint16_t>(out, 0x13);
 			write_int<uint32_t>(out, v.size());
