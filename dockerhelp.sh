@@ -28,6 +28,7 @@ $DOCKER_COMMAND run \
 	-e "JOBS=$JOBS" \
 	-e "LR=$LR" \
 	-e "OMP_NUM_THREADS=1" \
+	-e "GPU=$GPU" \
 	--rm -it \
 	-v $(pwd):/nesai \
 	-e HOME=/thehome \
