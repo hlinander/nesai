@@ -15,7 +15,7 @@
 #include "bm.h"
 
 const int N_HIDDEN = 64U;
-const int RAM_SIZE = 0x800;
+const int RAM_SIZE = 0;//0x800;
 const int SCREEN_PIXELS = 32*30;
 const int STATE_SIZE = RAM_SIZE + SCREEN_PIXELS * 3;
 const float ACTION_THRESHOLD = 0.5f;
@@ -212,17 +212,24 @@ struct Model {
 	}
 
 	ActionType get_action(StateType &s) {
-		auto tout = forward(s);
+		auto ts = torch::from_blob(static_cast<void*>(s.data()), {1, STATE_SIZE}, torch::kFloat32);
+		auto dts = ts.to(net->device);
+		auto tout = net->forward(dts);
+		const size_t n_samples = 1;
 		torch::Tensor out = torch::softmax(tout, 1).to(torch::kCPU);
 		torch::Tensor argmax = torch::argmax(out, 1).to(torch::kCPU);
-		torch::Tensor sample = torch::multinomial(out, 1, true, nullptr);
+		torch::Tensor sample = torch::multinomial(out, n_samples, false, nullptr);
+		auto sample_a = sample.accessor<long, 2>();
+		// for(int i = 0; i < n_samples; ++i) {
+		// 	auto vt = value_net->forward(dts).to(torch::kCPU);
+		// 	float v = vt.item<float>();
+		// }
 		// auto argmax_a = argmax.accessor<long,1>();
 		// std::cout << out << std::endl;
 		// std::cout << sample << std::endl;
 		// std::cout << "NEW SAMPLE" << std::endl;
 		// std::cout << "ARGMAX" << argmax  << " p: " << out[0][argmax_a[0]]<< std::endl;
 		// std::cout << "SAMPLE" << sample << std::endl;
-		auto sample_a = sample.accessor<long, 2>();
         std::array<uint8_t, ACTION_SIZE> actions;
 		actions.fill(0);
 		// actions[static_cast<size_t>(argmax_a[0])] = 1;

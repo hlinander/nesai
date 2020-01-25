@@ -146,7 +146,7 @@ plot_all_rewards <- function() {
 				 c(2),
 				 c(3))
 	plot <- grid.arrange(mr, rewards, lengths, nrow=3, layout_matrix=lay)
-	ggsave(plot_file, plot=plot, device="png", width=30, height=10)
+	ggsave(plot_file, plot=mr, device="png", width=30, height=10)
 }
 
 # plot_all_epochs()

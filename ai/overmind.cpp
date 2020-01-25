@@ -9,6 +9,7 @@
 #include "json.hpp"
 #include "replay.h"
 #include "reward.h"
+#include "rds.hpp"
 
 #define DEBUG(...)
 
@@ -58,6 +59,7 @@ const bool DEBUG = nullptr != getenv("DEBUG");
 static std::ofstream debug_log;
 static std::ofstream doom_log;
 static nlohmann::json json;
+static rds_data rds;
 
 using stat_map = std::unordered_map<std::string, size_t>;
 
@@ -215,7 +217,7 @@ void update_model_softmax(Model &m, Model &experience, stat_map &stats, const fl
         auto old_logp_action = old_logp.gather(1, gpu_action_indices);
         auto r = torch::exp(logp_action - old_logp_action.detach());
         // std::cout << (r * trewards_gpu).mean().item<float>() << std::endl;
-		auto lloss = torch::min(r * trewards_gpu, torch::clamp(r, 1.0 - 0.2, 1.0 + 0.2) * trewards_gpu);
+		auto lloss = torch::min(r * trewards_gpu, torch::clamp(r, 1.0 - 0.1, 1.0 + 0.1) * trewards_gpu);
 	    auto sloss = lloss.mean();
 
 		(-sloss).backward();
@@ -400,10 +402,12 @@ int main(int argc, const char *argv[])
             Benchmark exp_agg("Experience aggregation");
             for(auto &e : experiences)
             {
-                mean_reward = calculate_rewards(e);
+                float e_mean_reward = calculate_rewards(e);
+                mean_reward += e_mean_reward;
                 agg_experiences.append_experience(e);
             }
             // distill(agg_experiences);
+            mean_reward /= static_cast<float>(experiences.size());
         }
 		for(int epoch = 0; epoch < PPO_EPOCHS; epoch++) {
 			Benchmark bepoch{"epoch"};

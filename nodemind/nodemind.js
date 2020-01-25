@@ -484,8 +484,25 @@ app.get('/gifz/:name', async (req, res) => {
   res.render('gifz', { ais, gifs })
 })
 
+async function getGifs() {
+  var gifs = await fs.readdir('public/gifs')
+  gifs.sort()
+  var ret = {}
+  for(let ai in ais) {
+    const rx = new RegExp(ais[ai].name + '_\\d+\\.gif')
+    ai_gifs = gifs.filter(a => null != a.match(rx))
+    for(let i = 0; i < ai_gifs.length; ++i) { 
+      ai_gifs[i] = '/gifs/' + ai_gifs[i]
+    }
+    ret[ai] = ai_gifs
+    ret[ai].reverse()
+  }
+  return ret
+}
+
 app.get('/', async (req, res) => {
-  res.render('index', { ais })
+  var gifs = await getGifs();
+  res.render('dash', { ais, gifs })
 })
 
 setInterval(() => {
@@ -502,27 +519,26 @@ setInterval(() => {
   if(nuke.length) console.log('Number of jobs timed out', nuke.length)
 }, 100);
 
-function generatePlots() {
+async function generatePlots() {
   if(shouldPlotAIs.length > 0)
   {
     var name = shouldPlotAIs.pop();
     console.log("Will generate plots for " + name)
-    Promise.all([
+    await Promise.all([
       generateGif(ais[name]),
       generateLargestats(ais[name]),
       generateSmallstats(ais[name], 5),
       generateValuestats(ais[name]),
       generateRewards(ais[name])
-    ]).then(() => {
-      console.log("Plots for " + name + " done!");
-      generatePlots();
-    });
+    ]);
+    console.log("Plots for " + name + " done!");
+    generatePlots();
+    return
   }
-  else {
-    console.log("No more plots to do...");
-    setTimeout(() => generatePlots(), 1000);
-  }
-};
+  console.log("No more plots to do...");
+  await new Promise((resolve) => { setTimeout(resolve, 1000)});
+  generatePlots();
+}
 
 app.listen(port, async () => {
   console.log(`Example app listening on port ${port}!`)

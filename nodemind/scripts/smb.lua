@@ -95,9 +95,9 @@ function brain_get_reward(frame)
     end
 
 	if 1 == read_cpu(0x770) and 3 == read_cpu(0x772) then
-		-- reward = xscore
+		reward = xscore
 		-- print(marioy)
-		reward = marioy - 0x96 - 30
+		-- reward = marioy - 0x96 - 26
 		-- print(reward)
 		-- if absolute_x > old_max_x then
 		-- 	reward = reward + absolute_x -- (absolute_x - old_max_x)
