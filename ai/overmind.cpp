@@ -491,7 +491,7 @@ int main(int argc, const char *argv[])
                 rds.save(out);
 
                 std::stringstream ss;
-                ss << "gzip -f " << tmp_file;
+                ss << "gzip -f " << tmp_file.str();
                 system(ss.str().c_str());
             }
             std::experimental::filesystem::rename(p/tmp_file.str(), p/metric_file.str());
