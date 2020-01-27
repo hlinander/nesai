@@ -81,8 +81,8 @@ struct Net : torch::nn::Module {
 	}
 
 	torch::Tensor forward(torch::Tensor x) {
-		x = bn1->forward(torch::leaky_relu(fc1->forward(x)));
-		x = bn2->forward(torch::leaky_relu(fc2->forward(x)));
+		x = (torch::leaky_relu(fc1->forward(x)));
+		x = (torch::leaky_relu(fc2->forward(x)));
 		x = fc3->forward(x);
 		// x = torch::tanh(fc1->forward(x));
 		// x = torch::tanh(fc2->forward(x));
@@ -127,6 +127,7 @@ struct Model {
 		a(cereal::make_nvp("actions", actions));
 		a(cereal::make_nvp("states", states));
 		a(cereal::make_nvp("immidiate_rewards", immidiate_rewards));
+		a(cereal::make_nvp("values", values));
 		std::stringstream ss;
 		torch::save(net, ss);
 		a(cereal::make_nvp("net", ss.str()));
@@ -172,6 +173,7 @@ struct Model {
 		a(cereal::make_nvp("actions", actions));
 		a(cereal::make_nvp("states", states));
 		a(cereal::make_nvp("immidiate_rewards", immidiate_rewards));
+		a(cereal::make_nvp("values", values));
 		std::string s;
 		a(s);
 		std::stringstream ss{s};
@@ -211,6 +213,13 @@ struct Model {
 		return net->forward(t);
 	}
 
+	float get_value(StateType &s) {
+		auto ts = torch::from_blob(static_cast<void*>(s.data()), {1, STATE_SIZE}, torch::kFloat32);
+		auto dts = ts.to(net->device);
+		auto tout = value_net->forward(dts).to(torch::kCPU);
+		return tout.item<float>();
+	}
+
 	ActionType get_action(StateType &s) {
 		auto ts = torch::from_blob(static_cast<void*>(s.data()), {1, STATE_SIZE}, torch::kFloat32);
 		auto dts = ts.to(net->device);
@@ -237,7 +246,7 @@ struct Model {
 		return actions;
 	}
 
-	void record_action(StateType &s, ActionType a, float immidiate_reward) {
+	void record_action(StateType &s, ActionType a, float immidiate_reward, float value) {
 		states.push_back(s);
 		actions.push_back(a);
 
@@ -251,6 +260,7 @@ struct Model {
             }
         }
 		immidiate_rewards.push_back(immidiate_reward);
+		values.push_back(value);
 	}
 
 	void append_experience(Model &m)
@@ -260,6 +270,8 @@ struct Model {
 		one_hot_actions.insert(one_hot_actions.end(), m.one_hot_actions.begin(), m.one_hot_actions.end());
 		immidiate_rewards.insert(immidiate_rewards.end(), m.immidiate_rewards.begin(), m.immidiate_rewards.end());
 		rewards.insert(rewards.end(), m.rewards.begin(), m.rewards.end());
+		values.insert(values.end(), m.values.begin(), m.values.end());
+		adv.insert(adv.end(), m.adv.begin(), m.adv.end());
 	}
 
 	void remove_frame(size_t frame)
@@ -269,6 +281,8 @@ struct Model {
 		states.erase(states.begin() + frame);
 		time_stamps.erase(time_stamps.begin() + frame);
 		immidiate_rewards.erase(immidiate_rewards.begin() + frame);
+		values.erase(values.begin() + frame);
+		adv.erase(adv.begin() + frame);
 	}
 
 	ActionType saved_action(int frame) {
@@ -290,4 +304,6 @@ struct Model {
 	std::vector<uint32_t> time_stamps;
 	std::vector<float> immidiate_rewards;
 	std::vector<float> rewards;
+	std::vector<float> adv;
+	std::vector<float> values;
 };

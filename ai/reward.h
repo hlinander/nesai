@@ -3,6 +3,7 @@
 
 struct Reward {
 	std::vector<float> rewards;
+	std::vector<float> adv;
 	float total_reward;
 };
 

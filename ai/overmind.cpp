@@ -102,6 +102,8 @@ static std::string action_name(const ActionType &action)
     return s;
 }
 
+void test_update_model();
+
 void analyze_step(Model &after, Model &experience) {
 	// Reward reward = calculate_rewards(experience);
     after.net->eval();
@@ -155,19 +157,22 @@ void distill(Model &exp)
     std::cout << "ACTIVE FRAMES: " << active_frames << std::endl;
 }
 
-void update_model_softmax(Model &m, Model &experience, stat_map &stats, const float avg_reward, bool debug) {
+void update_model_softmax(Model &m, Model &experience) {
 	torch::Tensor loss = torch::tensor({0.0f});
 	// Reward reward = calculate_rewards(experience);
 
 	std::vector<float> rewards_batch;
 	rewards_batch.resize(BATCH_SIZE);
+	std::vector<float> adv_batch;
+	adv_batch.resize(BATCH_SIZE);
 	std::vector<float> action_batch;
 	action_batch.resize(BATCH_SIZE * ACTION_SIZE);
     std::vector<long> action_indices;
 	action_indices.resize(BATCH_SIZE);
 
     m.net->train();
-
+    m.value_net->train();
+    // std::cout << "update" << std::endl;
 	for (int frame = 0; frame < experience.get_frames(); frame+=BATCH_SIZE) {
 		size_t actual_bs = std::min(BATCH_SIZE, experience.get_frames() - frame);
         if(actual_bs == 1) {
@@ -180,6 +185,7 @@ void update_model_softmax(Model &m, Model &experience, stat_map &stats, const fl
 
 		for(size_t i = 0; i < actual_bs; ++i) {
             rewards_batch[i] = experience.rewards[frame + i];
+            adv_batch[i] = experience.adv[frame + i];
             for(size_t j = 0; j < ACTION_SIZE; ++j) {
                 action_batch[i * ACTION_SIZE + j] = experience.actions[frame + i][j];
                 if(experience.actions[frame + i][j] == 1)
@@ -191,6 +197,8 @@ void update_model_softmax(Model &m, Model &experience, stat_map &stats, const fl
 
 		auto trewards = torch::from_blob(static_cast<void*>(rewards_batch.data()), {(long)actual_bs, 1}, torch::kFloat32);
         auto trewards_gpu = trewards.to(m.net->device);
+		auto tadv = torch::from_blob(static_cast<void*>(adv_batch.data()), {(long)actual_bs, 1}, torch::kFloat32);
+        auto tadv_gpu = tadv.to(m.net->device);
         auto trewards_minus_V = trewards_gpu;// - v.detach(); //torch::clamp(v, 0.0f, 10000.0f);
 		auto torch_actions = torch::from_blob(static_cast<void*>(action_batch.data()), {(long)actual_bs, ACTION_SIZE}, torch::kFloat32);
 		auto torch_action_indices = torch::from_blob(static_cast<void*>(action_indices.data()), {(long)actual_bs, 1}, torch::kLong);
@@ -215,15 +223,28 @@ void update_model_softmax(Model &m, Model &experience, stat_map &stats, const fl
         // auto r = p * gpu_actions / torch::clamp(old_p, 0.0001f, 1.0f);
         auto logp_action = logp.gather(1, gpu_action_indices);
         auto old_logp_action = old_logp.gather(1, gpu_action_indices);
-        auto r = torch::exp(logp_action - old_logp_action.detach());
+        // auto ep = torch::exp(logp_action);
+        // auto elp = (torch::exp(old_logp_action.detach()) + 1e-8);
+        auto epelp = torch::exp(logp_action - old_logp_action.detach());
+        auto r = epelp;
+        // auto rc = r.to(torch::kCPU);
+        // std::cout << rc << std::endl;
         // std::cout << (r * trewards_gpu).mean().item<float>() << std::endl;
-		auto lloss = torch::min(r * trewards_gpu, torch::clamp(r, 1.0 - 0.1, 1.0 + 0.1) * trewards_gpu);
+        // std::cout << "R: ";
+        // std::cout 
+        //         //   << " ep: " << ep.mean().item<float>() 
+        //         //   << " elp: " << elp.mean().item<float>() 
+        //           << " epelp: " << epelp.mean().item<float>() 
+        //           << std::endl;
+		auto lloss = torch::min(r * tadv_gpu, torch::clamp(r, 1.0 - 0.1, 1.0 + 0.1) * tadv_gpu);
+        // std::cout << "adv: " << tadv_gpu.mean().item<float>() << std::endl;
+        // auto lloss = epelp;// * tadv_gpu;
 	    auto sloss = lloss.mean();
 
 		(-sloss).backward();
 
         m.value_optimizer.zero_grad();
-        auto vloss = ((trewards_gpu - v) * (trewards_gpu - v)).sum();
+        auto vloss = ((trewards_gpu - v) * (trewards_gpu - v)).mean();
         (vloss).backward();
         m.value_optimizer.step();
 	}
@@ -415,10 +436,10 @@ int main(int argc, const char *argv[])
             m.value_optimizer.zero_grad();
             // for(auto &e : experiences)
             // {
-            update_model_softmax(m, agg_experiences, sm, 0.0, false);
+            update_model_softmax(m, agg_experiences);
             // }
 			m.optimizer.step();
-			m.value_optimizer.step();
+			// m.value_optimizer.step();
             if(m.net->isnan()) {
                 std::cout << "Doomed tensors!" << std::endl;
                 for(auto &e : experiences)
@@ -433,14 +454,16 @@ int main(int argc, const char *argv[])
 
             }
         }
-        analyze_step(m, experiences[0]);
+        // analyze_step(m, experiences[0]);
 #ifndef NO_HAMPUS
         {
             Benchmark hampe_dbg("hampe_dbg");
             rds_data rds;
 
             rds["rewards"] = &experiences[0].rewards;
+            rds["advantage"] = &experiences[0].adv;
             rds["actions"] = &experiences[0].actions;
+            rds["values"] = &experiences[0].values;
 
             auto np = m.net->named_parameters();
             auto oldp = experiences[0].net->named_parameters();
@@ -468,35 +491,36 @@ int main(int argc, const char *argv[])
 
             rds["mean_reward"] = mean_reward;
 
-            std::vector<float> values;
-            values.resize(experiences[0].get_frames());
-            for(int frame = 0; frame < experiences[0].get_frames(); frame+=BATCH_SIZE)
-            {
-                size_t actual_bs = std::min(BATCH_SIZE, experiences[0].get_frames() - frame);
-                if(actual_bs == 1) {
-                    break;
-                }
-                auto v = m.value_net->forward(experiences[0].get_batch(frame, frame + actual_bs)).to(torch::kCPU);
-                std::copy(v.data_ptr<float>(), v.data_ptr<float>() + actual_bs, values.begin() + frame);
-            }
-            rds["values"] = &values;
+            // std::vector<float> values;
+            // values.resize(experiences[0].get_frames());
+            // for(int frame = 0; frame < experiences[0].get_frames(); frame+=BATCH_SIZE)
+            // {
+            //     size_t actual_bs = std::min(BATCH_SIZE, experiences[0].get_frames() - frame);
+            //     if(actual_bs == 1) {
+            //         break;
+            //     }
+            //     auto v = m.value_net->forward(experiences[0].get_batch(frame, frame + actual_bs)).to(torch::kCPU);
+            //     std::copy(v.data_ptr<float>(), v.data_ptr<float>() + actual_bs, values.begin() + frame);
+            // }
 
             std::stringstream tmp_file;
+            std::stringstream tmp_file_gz;
             std::stringstream metric_file;
             std::experimental::filesystem::path p = std::experimental::filesystem::current_path();
             std::experimental::filesystem::create_directories(p/"metrics/");
             std::experimental::filesystem::create_directories(p/"tmp_metrics/");
-            tmp_file << std::string("tmp_metrics/") << argv[arg_name] << "_" << argv[arg_generation] << ".rds";
-            metric_file << std::string("metrics/") << argv[arg_name] << "_" << argv[arg_generation] << ".rds";
+            tmp_file << std::string("tmp_metrics/") << argv[arg_name] << "_" << std::setfill('0') << std::setw(5) << argv[arg_generation] << ".rds";
+            tmp_file_gz << std::string("tmp_metrics/") << argv[arg_name] << "_" << std::setfill('0') << std::setw(5) << argv[arg_generation] << ".rds.gz";
+            metric_file << std::string("metrics/") << argv[arg_name] << "_" << std::setfill('0') << std::setw(5) << argv[arg_generation] << ".rds";
             {
                 std::ofstream out(tmp_file.str());
                 rds.save(out);
-
-                std::stringstream ss;
-                ss << "gzip -f " << tmp_file.str();
-                system(ss.str().c_str());
             }
-            std::experimental::filesystem::rename(p/tmp_file.str(), p/metric_file.str());
+
+            std::stringstream ss;
+            ss << "gzip -f " << tmp_file.str();
+            system(ss.str().c_str());
+            std::experimental::filesystem::rename(p/tmp_file_gz.str(), p/metric_file.str());
         }
 #endif
         {
@@ -504,10 +528,67 @@ int main(int argc, const char *argv[])
             m.save_file(argv[4]);
         }
     }
+    else if(0 == strcmp(argv[1], "test"))
+    {
+        test_update_model();
+    }
     else
     {
         std::cout << "unknown command" << std::endl;
         return 1;
     }
     return 0;
+}
+
+void test_update_model() {
+    Model m1(LR);
+    Model exp(LR);
+    m1.save_file("/tmp/m");
+    exp.load_file("/tmp/m");
+    StateType s1, s2;
+    ActionType a1, a2;
+    a1.fill(0u);
+    a1[1] = 1u;
+    a2.fill(0u);
+    a2[0] = 1u;
+    for(size_t i = 0; i < STATE_SIZE; ++i)
+    {
+        s1[i] = .1f;
+        s2[i] = -.1f;
+    }
+    for(int i = 0; i < 500; ++i)
+    {
+        exp.record_action(s1, a1, 100.0f, 1.0f);
+        m1.record_action(s1, a1, 100.0f, 1.0f);
+    }
+    for(int i = 0; i < 500; ++i)
+    {
+        exp.record_action(s2, a2, -100.0f, 1.0f);
+        m1.record_action(s2, a2, -100.0f, 1.0f);
+    }
+    calculate_rewards(exp);
+    for(int i = 0; i < 200; ++i)
+    {
+        m1.optimizer.zero_grad();
+        update_model_softmax(m1, exp);
+        m1.optimizer.step();
+        m1.save_file("/tmp/m");
+        exp.load_file("/tmp/m");
+        if(i % 2 == 0) {
+            auto pa = torch::softmax(m1.forward(s1), 1).to(torch::kCPU);
+            auto s1a = m1.get_value(s1);
+            auto s2a = m1.get_value(s2);
+            auto paa = pa.accessor<float, 2>();
+            std::cout << "[";
+            for(int i = 0; i < ACTION_SIZE; ++i)
+            {
+                std::cout << paa[0][i] << ", ";
+            }
+            std::cout << "] " 
+                << std::endl 
+                << " v1: " << s1a 
+                << " v2: " << s2a 
+                << std::endl;
+        }
+    }
 }

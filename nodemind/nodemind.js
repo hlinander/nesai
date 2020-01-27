@@ -103,18 +103,14 @@ app.get('/smallstats/:name/:nGenerations', async (req, res) => {
 async function generateValuestats(ai)
 {
     var name = ai.name;
-    let { stdout } = await exec(`ls -1t metrics/${name}_*.json | head -1`)
+    let { stdout } = await exec(`ls -1t metrics/${name}_*.rds | head -1`)
     const files = stdout.split('\n').join(' ')
-    {
-    let cmd = `jq -s . ${files} > metrics_read_value_${name}.json`
-    let { stdout } = await exec(cmd)
-    }
     {
     let cmd = "R --no-save --no-restore < plot_val.r"
     let { stdout } = await exec(cmd,
     {
       env: {
-        PLOT_DATA_FILE: `metrics_read_value_${name}.json`,
+        PLOT_DATA_FILES: files,
         PLOT_FILE: `valstats_${name}.png`
       }
     })
@@ -126,18 +122,14 @@ async function generateValuestats(ai)
 async function generateSmallstats(ai, n)
 {
     var name = ai.name;
-    let { stdout } = await exec(`ls -1t metrics/${name}_*.json | head -${n}`)
+    let { stdout } = await exec(`ls -1t metrics/${name}_*.rds | head -${n}`)
     const files = stdout.split('\n').join(' ')
-    {
-    let cmd = `jq -s . ${files} > metrics_read_small_${name}.json`
-    let { stdout } = await exec(cmd)
-    }
     {
     let cmd = "R --no-save --no-restore < plot_stats.r"
     let { stdout } = await exec(cmd,
     {
       env: {
-        PLOT_DATA_FILE: `metrics_read_small_${name}.json`,
+        PLOT_DATA_FILES: files,
         PLOT_FILE: `smallstats_${name}.png`
       }
     })
@@ -151,14 +143,22 @@ async function generateSmallstats(ai, n)
     }
 }
 
+async function getMetricsForAI(ai)
+{
+    var metrics = await fs.readdir('metrics/')
+    metrics.sort()
+    const rx = new RegExp(ai.name + '_\\d+\\.rds')
+    ai_metrics = metrics.filter(a => null != a.match(rx)).map(p => `metrics/${p}`)
+    return ai_metrics;
+}
+
 async function generateLargestats(ai)
 {
     var name = ai.name;
-    await exec(`jq -s . metrics/${name}_*.json > metrics_read_large_${name}.json`)
-    await exec("R --no-save --no-restore < plot_stats.r",
+    var {stdout} = await exec("R --no-save --no-restore < plot_stats.r",
     {
       env: {
-        PLOT_DATA_FILE: `metrics_read_large_${name}.json`,
+        PLOT_DATA_FILES: (await getMetricsForAI(ai)).join(" "),
         PLOT_FILE: `stats_${name}.png`
       }
     })
@@ -174,11 +174,10 @@ async function generateLargestats(ai)
 async function generateRewards(ai)
 {
   var name = ai.name;
-  await exec(`jq -s . metrics/${name}_*.json > metrics_read_reward_${name}.json`)
   await exec("R --no-save --no-restore < plot_rewards.r",
   {
     env: {
-      PLOT_DATA_FILE: `metrics_read_reward_${name}.json`,
+      PLOT_DATA_FILES: (await getMetricsForAI(ai)).join(" "),
       PLOT_FILE: `rewards_${name}.png`
     }
   })
@@ -403,7 +402,10 @@ async function advanceGeneration(ai) {
   ai.jobs_done = 0
   ++ai.generation
   await saveAI(ai)
-  shouldPlotAIs.push(ai.name);
+  if(shouldPlotAIs.indexOf(ai.name) == -1)
+  {
+    shouldPlotAIs.push(ai.name);
+  }
 }
 
 app.post('/result/:job_id', async (req, res) => {
@@ -522,12 +524,12 @@ setInterval(() => {
 async function generatePlots() {
   if(shouldPlotAIs.length > 0)
   {
-    var name = shouldPlotAIs.pop();
+    var name = shouldPlotAIs.shift();
     console.log("Will generate plots for " + name)
     await Promise.all([
       generateGif(ais[name]),
       generateLargestats(ais[name]),
-      generateSmallstats(ais[name], 5),
+      generateSmallstats(ais[name], 20),
       generateValuestats(ais[name]),
       generateRewards(ais[name])
     ]);

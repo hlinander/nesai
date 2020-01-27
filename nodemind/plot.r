@@ -6,6 +6,7 @@ library(ggridges)
 library(tictoc)
 
 plot_parameters = function(data, type, layer, color) {
+	tic("preproc")
 	nplots <- min(c(length(data), 15))
 	indices <- round(seq(1, length(data), length.out=nplots))
 	sdata <- data[indices]
@@ -16,7 +17,10 @@ plot_parameters = function(data, type, layer, color) {
 	colnames(df) <- as.character(indices)
 	df$ids = seq_len(nrow(df))
 	df <- melt(df, id.vars="ids", variable.name = 'series')
+	toc()
+	tic("ggplot")
 	g <- ggplot(df, aes(x=value, y=series)) + geom_density_ridges(fill=color) + ggtitle(paste(type, layer))
+	toc()
 	return(g)
 }
 
@@ -44,6 +48,23 @@ plot_rewards = function(data) {
 	indices <- round(seq(1, length(data), length.out=nplots))
 	sdata <- data[indices]
 	rewards <- lapply(sdata, function(e) { e$reward[1:min(2000, length(e$reward))] })
+	crewards <- lapply(rewards, unlist)
+	df <- data.frame(do.call(cbind, crewards))
+	colnames(df) <- as.character(indices)
+	df$id <- seq_len(nrow(df))
+	melted <- melt(df, id.vars="id", variable.name="series")
+	# res <- ggplot(melted, aes(x=id, y=rep(0, nrow(melted)), height=value, group=series)) + geom_ridgeline()
+	# res <- ggplot(melted, aes(x=id, y=series, height=value)) + geom_density_ridges(stat="identity", scale=1)
+	# res <- ggplot(melted, aes(x=id, y=value, fill = value > 0)) + geom_hline(yintercept=0) + geom_smooth(span=0.1) + facet_grid(series~.)
+	res <- ggplot(melted, aes(x=id, y=value, colour = value > 0)) + geom_hline(yintercept=0) + geom_point() + facet_grid(series~.)
+	return(res)
+}
+
+plot_advantages = function(data) {
+	nplots <- min(c(length(data), 15))
+	indices <- round(seq(1, length(data), length.out=nplots))
+	sdata <- data[indices]
+	rewards <- lapply(sdata, function(e) { e$advantage[1:min(2000, length(e$advantage))] })
 	crewards <- lapply(rewards, unlist)
 	df <- data.frame(do.call(cbind, crewards))
 	colnames(df) <- as.character(indices)
@@ -100,7 +121,8 @@ plot_all = function(data, plot_file) {
 	db3 <- plot_parameters(data, 'dparameters', 'fc3.bias', 'lightgreen')
 
 	mr <- plot_avg_rewards(data)
-	rewards <- plot_rewards(data)
+	# rewards <- plot_rewards(data)
+	advantages <- plot_advantages(data)
 	lengths <- plot_rollout_lengths(data)
 	actions <- plot_actions(data)
 	lay <- rbind(c(1,2,3, 4, 5, 6),
@@ -122,23 +144,34 @@ plot_all = function(data, plot_file) {
     # tic('actions')
 	# print(actions)
 	# toc()
-	plot <- grid.arrange(w1,w2,w3, b1,b2,b3,dw1,dw2,dw3, db1,db2,db3,mr,rewards, lengths, actions, nrow=3, layout_matrix=lay)
+	tic("grid")
+	plot <- grid.arrange(w1,w2,w3, b1,b2,b3,dw1,dw2,dw3, db1,db2,db3,mr,advantages, lengths, actions, nrow=3, layout_matrix=lay)
+	toc()
 	#print(plot)
 	# plot <- grid.arrange(w1,w2,w3, b1,b2,b3,dw1,dw2,dw3, db1,db2,db3,mr,rewards, lengths, nrow=3, layout_matrix=lay)
+	tic("save")
 	ggsave(plot_file, plot=plot, device="png", width=30, height=20)
+	toc()
 }
 
 plot_all_epochs <- function() {
-	data_file <- Sys.getenv("PLOT_DATA_FILE")
+	data_files_string <- Sys.getenv("PLOT_DATA_FILES")
 	plot_file <- Sys.getenv("PLOT_FILE")
-	data <- fromJSON(file=data_file)
-	plot_all(data, plot_file)
+
+	tic("load")
+	data_files <- unlist(strsplit(data_files_string, " "))
+	data_list <- lapply(data_files, readRDS)
+	toc()
+	tic("plot")
+	plot_all(data_list, plot_file)
+	toc()
 }
 
 plot_all_rewards <- function() {
-	data_file <- Sys.getenv("PLOT_DATA_FILE")
+	data_files_string <- Sys.getenv("PLOT_DATA_FILES")
 	plot_file <- Sys.getenv("PLOT_FILE")
-	data <- fromJSON(file=data_file)
+	data_files <- unlist(strsplit(data_files_string, " "))
+	data <- lapply(data_files, readRDS)
 	mr <- plot_avg_rewards(data)
 	rewards <- plot_rewards(data)
 	lengths <- plot_rollout_lengths(data)
@@ -165,11 +198,16 @@ plot_value_vs_reward <- function(data) {
 }
 
 plot_vr <- function() {
-	data_file <- Sys.getenv("PLOT_DATA_FILE")
+	data_files_string <- Sys.getenv("PLOT_DATA_FILES")
 	plot_file <- Sys.getenv("PLOT_FILE")
-	data <- fromJSON(file=data_file)
+	data_files <- unlist(strsplit(data_files_string, " "))
+	data <- lapply(data_files, readRDS)
 	p <- plot_value_vs_reward(data)
-	ggsave(plot_file, plot=p, device="png", width=20, height=5)
+	pa <- plot_advantages(data)
+	lay <- rbind(c(1),
+				 c(2))
+	plot <- grid.arrange(p, pa, nrow=1, layout_matrix=lay)
+	ggsave(plot_file, plot=plot, device="png", width=20, height=5)
 }
 
 #print(plot_parameters(json_data))

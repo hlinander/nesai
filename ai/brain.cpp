@@ -168,6 +168,7 @@ void brain_init()
 		lua_pushcfunction(L, brain_lua_save_state);
 		lua_setglobal(L, "save_state");
 		model.net->eval();
+		model.value_net->eval();
 	}
 
 	headless = bool_env("HL");
@@ -337,10 +338,12 @@ bool brain_on_frame(float *frame_reward)
 		s[i*3 + RAM_SIZE + 2] = static_cast<float>((nes_screen[i]) & 255) / 255.0 - 0.5f;
 	}
 	ActionType a = model.get_action(s);
+	float v = model.get_value(s);
 	if(save_frame)
 	{
 		// std::cout << reward << std::endl;
-		model.record_action(s, a, reward);
+		std::cout << v << std::endl;
+		model.record_action(s, a, reward, v);
 	}
 
 	int override = override_input(frame);

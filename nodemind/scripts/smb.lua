@@ -37,7 +37,7 @@ function brain_begin_rollout()
 	nloads = 0
 	nmaxframes = os.getenv('MAX_FRAMES')
 	if nmaxframes == nil then
-		nmaxframes = 3000
+		nmaxframes = 500
 	else
 		nmaxframes = tonumber(nmaxframes)
 	end
@@ -88,7 +88,7 @@ function brain_get_reward(frame)
 
 	local absolute_x = page * 0x100 + screenx + relx
 	local xscore = ((page - old_page) * 0x100) + (screenx - old_screenx) + (relx - old_relx)
-	local reward = -10
+	local reward = 0
 
 	if screenx - old_screenx > 0 then
 		next_save_frame = next_save_frame + 1
