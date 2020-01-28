@@ -1,0 +1,16 @@
+extends layout.pug
+
+block content
+    div(class="container")
+        div(class="row")
+            each val, index in ais
+                div(class="col-sm")
+                    div(class="card", style="width: 18rem;")
+                        img(src=gifs[ais[index].name][0], class="card-img-top")
+                        div(class="card-body")
+                            h5(class="card-title")
+                                =ais[index].name + " " + ais[index].generation
+                            div(class="card-text")
+                                - var rsrc = '/rewards_' + ais[index].name + '.png'
+                                img(src=rsrc, class="img-fluid")
+                    //- =ais[index].name
