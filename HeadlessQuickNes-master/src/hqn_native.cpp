@@ -5,6 +5,7 @@
 #include "font.h"
 
 #include <brain.h>
+#include <model.h>
 
 #include <string>
 #include <iostream>
@@ -221,11 +222,12 @@ static int run_brain()
 
 	float frame_reward = 0;
 	float total_reward = 0;
+	int action_idx = 0;
 	if(!getenv("RESET")) 
 	{
 		// load_state_disk();
 	}
-	while(brain_on_frame(&frame_reward))
+	while(brain_on_frame(&frame_reward, &action_idx))
 	{
 		uint8_t bits = brain_controller_bits();
 		total_reward += frame_reward;
@@ -313,6 +315,16 @@ static int run_brain()
 				}
 			}
 
+			/*
+			0 - A
+			1 - B
+			2 - Select
+			3 - Start
+			4 - Up
+			5 - Down
+			6 - Left
+			7 - Right
+			*/
 			static const char keynames[] = "><v^SxBA";
 			std::string keyout;
 
@@ -320,7 +332,7 @@ static int run_brain()
 			{
 				if(bits & (1 << key))
 				{
-					keyout.push_back(keynames[key]);
+					keyout.push_back(keynames[7 - key]);
 				}
 				else
 				{
@@ -331,7 +343,9 @@ static int run_brain()
 			// write_string(8, 208, std::to_string(rollout), 0xFF0000FF, 1, 1);
 			write_string(8, 218, keyout, 0xFFFFFFFF, 1, 2);
 			write_string(8 + (8*16) + 8, 218, std::to_string(static_cast<int>(total_reward)), 0xFF0000FF, 1, 2);
+			write_string(8, 200, action_names[action_idx], 0xFFFFFFFF, 1, 2);
 			GifWriteFrame(&g, reinterpret_cast<uint8_t *>(frame_pixels), 256, 240, 1);
+			total_reward = 0;
 		}
 	}
 	// save_state_disk();

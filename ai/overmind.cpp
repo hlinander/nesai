@@ -20,7 +20,7 @@ static int get_batch_size()
 	{
 		return atoi(bs);
 	}
-	return 1024;
+	return 512;
 }
 
 static int get_ppo_epochs()
@@ -30,7 +30,7 @@ static int get_ppo_epochs()
 	{
 		return atoi(bs);
 	}
-	return 3;
+	return 1;
 }
 
 static float get_learning_rate()
@@ -236,6 +236,7 @@ void update_model_softmax(Model &m, Model &experience) {
         //         //   << " elp: " << elp.mean().item<float>() 
         //           << " epelp: " << epelp.mean().item<float>() 
         //           << std::endl;
+        debug_log << "<R>: " << r.mean().item<float>() << std::endl;
 		auto lloss = torch::min(r * tadv_gpu, torch::clamp(r, 1.0 - 0.1, 1.0 + 0.1) * tadv_gpu);
         // std::cout << "adv: " << tadv_gpu.mean().item<float>() << std::endl;
         // auto lloss = epelp;// * tadv_gpu;
@@ -433,7 +434,7 @@ int main(int argc, const char *argv[])
 		for(int epoch = 0; epoch < PPO_EPOCHS; epoch++) {
 			Benchmark bepoch{"epoch"};
 			m.optimizer.zero_grad();
-            m.value_optimizer.zero_grad();
+            // m.value_optimizer.zero_grad();
             // for(auto &e : experiences)
             // {
             update_model_softmax(m, agg_experiences);
@@ -490,6 +491,14 @@ int main(int argc, const char *argv[])
             }
 
             rds["mean_reward"] = mean_reward;
+            json["mean_reward"] = mean_reward;
+
+            {
+                std::stringstream json_metric_file;
+                json_metric_file << std::string("metrics/") << argv[arg_name] << "_" << std::setfill('0') << std::setw(5) << argv[arg_generation] << ".json";
+                std::ofstream out(json_metric_file.str());
+                out << std::setw(4) << json << std::endl;
+            }
 
             // std::vector<float> values;
             // values.resize(experiences[0].get_frames());
@@ -567,6 +576,7 @@ void test_update_model() {
         m1.record_action(s2, a2, -100.0f, 1.0f);
     }
     calculate_rewards(exp);
+    calculate_rewards(m1);
     for(int i = 0; i < 200; ++i)
     {
         m1.optimizer.zero_grad();

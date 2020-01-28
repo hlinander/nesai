@@ -1,1 +1,1 @@
-{"name":"smb","generation":0,"jobs_per_generation":$JOBS,"jobs_done":0,"rollouts":2,"job_timeout":60000,"rom":"smb.nes","model":"smb","script":"smb.lua"}
+{"name":"smb","best_generation":-1, "generation":0,"jobs_per_generation":$JOBS,"jobs_done":0,"rollouts":2,"job_timeout":60000,"rom":"smb.nes","model":"smb","script":"smb.lua"}

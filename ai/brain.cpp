@@ -286,7 +286,7 @@ void brain_bind_cpu_mem(const uint8_t *ram, const uint32_t *screen)
 	brain_begin_rollout();
 }
 
-bool brain_on_frame(float *frame_reward)
+bool brain_on_frame(float *frame_reward, int *action_idx)
 {
 	if(!brain_enabled())
 	{
@@ -338,11 +338,18 @@ bool brain_on_frame(float *frame_reward)
 		s[i*3 + RAM_SIZE + 2] = static_cast<float>((nes_screen[i]) & 255) / 255.0 - 0.5f;
 	}
 	ActionType a = model.get_action(s);
+	for(int i = 0; i < ACTION_SIZE; ++i) {
+		if(a[i] == 1)
+		{
+			*action_idx = i;
+		}
+	}
+
 	float v = model.get_value(s);
 	if(save_frame)
 	{
 		// std::cout << reward << std::endl;
-		std::cout << v << std::endl;
+		// std::cout << v << std::endl;
 		model.record_action(s, a, reward, v);
 	}
 
@@ -364,6 +371,7 @@ bool brain_on_frame(float *frame_reward)
 		size_t RIGHT_A = static_cast<size_t>(Action::RIGHT_A);
 		size_t RIGHT_B = static_cast<size_t>(Action::RIGHT_B);
 
+		// gp_bits = 1 << 7;
 		gp_bits = 0;
 		gp_bits |= a[A] << 0;
 		gp_bits |= a[UP_A] << 0;

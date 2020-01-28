@@ -77,6 +77,23 @@ plot_advantages = function(data) {
 	return(res)
 }
 
+plot_advantages = function(data) {
+	nplots <- min(c(length(data), 15))
+	indices <- round(seq(1, length(data), length.out=nplots))
+	sdata <- data[indices]
+	rewards <- lapply(sdata, function(e) { e$advantage[1:min(2000, length(e$advantage))] })
+	crewards <- lapply(rewards, unlist)
+	df <- data.frame(do.call(cbind, crewards))
+	colnames(df) <- as.character(indices)
+	df$id <- seq_len(nrow(df))
+	melted <- melt(df, id.vars="id", variable.name="series")
+	# res <- ggplot(melted, aes(x=id, y=rep(0, nrow(melted)), height=value, group=series)) + geom_ridgeline()
+	# res <- ggplot(melted, aes(x=id, y=series, height=value)) + geom_density_ridges(stat="identity", scale=1)
+	# res <- ggplot(melted, aes(x=id, y=value, fill = value > 0)) + geom_hline(yintercept=0) + geom_smooth(span=0.1) + facet_grid(series~.)
+	res <- ggplot(melted, aes(x=id, y=value, colour = value > 0)) + geom_hline(yintercept=0) + geom_point() + facet_grid(series~.)
+	return(res)
+}
+
 plot_rollout_lengths = function(data) {
 	# nplots <- min(c(length(data), 15))
 	# indices <- round(seq(1, length(data), length.out=nplots))
@@ -96,12 +113,18 @@ plot_actions = function(data) {
 	last <- tail(data, n=1)[[1]]
 	actions <- last$actions
 	actions <- actions[1:min(500, length(actions))]
+	adv <- last$advantage
+	adv <- adv[1:min(500, length(adv))]
 	df <- data.frame(do.call(rbind, actions))
-	colnames(df) <- c("up", "down", "left", "right", "up_a", "up_b", "down_a", "down_b", "left_a", "left_b", "right_a", "right_b", "a", "b", "start", "select")
+	df[, "adv"] <- adv
+	# print(df)
+	colnames(df) <- c("up", "down", "left", "right", "up_a", "up_b", "down_a", "down_b", "left_a", "left_b", "right_a", "right_b", "a", "b", "start", "select", "adv")
 	df$frame <- seq_len(nrow(df))
-	print(head(df, n=10))
-	melted <- melt(df, id.vars="frame", variable.name="button")
-	res <- ggplot(melted, aes(x=frame, y=value)) + geom_col() + facet_grid(button~.)
+	# print(head(df, n=10))
+	melted <- melt(df, id.vars=list("frame", "adv"), variable.name="button")
+	# print(head(melted, 10))
+	res <- ggplot(melted, aes(x=frame, y=value, color=adv)) + geom_col() + facet_grid(button~.) + scale_colour_gradientn(colours=rainbow(3))
+
 	return(res + theme_minimal())
 }
 

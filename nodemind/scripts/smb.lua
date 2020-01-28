@@ -37,7 +37,7 @@ function brain_begin_rollout()
 	nloads = 0
 	nmaxframes = os.getenv('MAX_FRAMES')
 	if nmaxframes == nil then
-		nmaxframes = 500
+		nmaxframes = 3000
 	else
 		nmaxframes = tonumber(nmaxframes)
 	end
@@ -98,6 +98,7 @@ function brain_get_reward(frame)
 		reward = xscore
 		-- print(marioy)
 		-- reward = marioy - 0x96 - 26
+    end
 		-- print(reward)
 		-- if absolute_x > old_max_x then
 		-- 	reward = reward + absolute_x -- (absolute_x - old_max_x)
@@ -113,46 +114,46 @@ function brain_get_reward(frame)
 		-- 	reward = reward + dscore
 		-- 	old_score = mario_score
         -- end
-		-- if math.abs(last_absolute_x - absolute_x) < 10 then
-		-- 	idle_frames = idle_frames + 1
-		-- 	if idle_frames > 100 then
-		-- 		reward = reward - 1
-  --           end
-		-- 	-- if idle_frames > 99 then
-		-- 	-- 	-- reward = reward - 1
-		-- 	-- 	-- if idle_frames > 180 then
-		-- 	-- 	if nloads < 10 then
-		-- 	-- 		load_state()
-		-- 	-- 		reward = 0
-		-- 	-- 		nloads = nloads + 1
-		-- 	-- 	else
-		-- 	-- 		is_dead = true
-		-- 	-- 	end
-		-- 	-- 	-- reward = reward - 100
-		-- 	-- 	next_save_frame = 0
-		-- 	-- 	-- end
-		-- 	-- end
-		-- else
-		-- 	idle_frames = 0
-		-- 	last_absolute_x = absolute_x
-		-- end
-	else
-		last_absolute_x = absolute_x
-		idle_frames = 0
-	end
+	-- 	if math.abs(last_absolute_x - absolute_x) < 10 then
+	-- 		idle_frames = idle_frames + 1
+	-- 		if idle_frames > 100 then
+	-- 			reward = reward - 1
+    --         end
+	-- 		-- if idle_frames > 99 then
+	-- 		-- 	-- reward = reward - 1
+	-- 		-- 	-- if idle_frames > 180 then
+	-- 		-- 	if nloads < 10 then
+	-- 		-- 		load_state()
+	-- 		-- 		reward = 0
+	-- 		-- 		nloads = nloads + 1
+	-- 		-- 	else
+	-- 		-- 		is_dead = true
+	-- 		-- 	end
+	-- 		-- 	-- reward = reward - 100
+	-- 		-- 	next_save_frame = 0
+	-- 		-- 	-- end
+	-- 		-- end
+	-- 	else
+	-- 		idle_frames = 0
+	-- 		last_absolute_x = absolute_x
+	-- 	end
+	-- else
+	-- 	last_absolute_x = absolute_x
+	-- 	idle_frames = 0
+	-- end
 
 	-- Check for dying or out-of-bounds
-	if (old_pstate ~= pstate and pstate == 0xb) or (ypos >= 2) then
-		if nloads < 10 then
-			load_state()
-			reward = 0
-			nloads = nloads + 1
-		else
-			is_dead = true
-		end
-		reward = reward - 10
-		next_save_frame = 0
-	end
+	-- if (old_pstate ~= pstate and pstate == 0xb) or (ypos >= 2) then
+	-- 	if nloads < 10 then
+	-- 		load_state()
+	-- 		reward = 0
+	-- 		nloads = nloads + 1
+	-- 	else
+	-- 		is_dead = true
+	-- 	end
+	-- 	reward = reward - 1
+	-- 	next_save_frame = 0
+	-- end
 	old_pstate = pstate
 
 	-- if old_lives ~= lives then

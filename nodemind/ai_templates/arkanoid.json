@@ -1,1 +1,1 @@
-{"name":"arkanoid","generation":0,"jobs_per_generation":$JOBS,"jobs_done":0,"rollouts":5,"job_timeout":60000,"rom":"arkanoid.nes","model":"arkanoid","script":"arkanoid.lua"}
+{"name":"arkanoid","best_generation":-1, "generation":0,"jobs_per_generation":$JOBS,"jobs_done":0,"rollouts":5,"job_timeout":60000,"rom":"arkanoid.nes","model":"arkanoid","script":"arkanoid.lua"}

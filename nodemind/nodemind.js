@@ -352,7 +352,7 @@ app.get('/job/:name', (req, res) => {
 
 
 async function advanceGeneration(ai) {
-  const modelfile = getModelFile(ai.name, ai.generation + 1)
+  var modelfile = getModelFile(ai.name, ai.generation + 1)
   console.log('../bin/overmind update '
     + getModelFile(ai.name, ai.generation) + ' '
     + getExperienceFile(ai.name) + ' '
@@ -382,7 +382,7 @@ async function advanceGeneration(ai) {
   for(let i = 0; i < files.length; ++i) {
     // console.log(files[i]);
     if(files[i].match(rx)) {
-      if(!saved)
+      if(!saved && ai.generation % 10 == 0)
       {
         await fs.copyFile('rollouts/' + files[i], 'saved_rollouts/' + files[i].split(".")[0] + '.g' + ai.generation);
         await fs.unlink('rollouts/' + files[i]);
@@ -394,6 +394,44 @@ async function advanceGeneration(ai) {
       }
     }
   }
+  // var gen_string = `${ai.generation}`.padStart(5, '0')
+  // var json_metrics = JSON.parse(await fs.readFile(`metrics/${ai.name}_${gen_string}.json`))
+  // if(!('best_reward' in ai)) {
+  //   console.log("First reward")
+  //   ai.best_reward = json_metrics['mean_reward'];
+  // }
+  /*
+  m_(n-1) -> m_n -> m_(n+1)
+                       ^
+                    e(n)
+  */
+  // if(json_metrics['mean_reward'] < ai.best_reward && ai.generation > 0 && ai.generation > ai.best_generation) {
+  //   console.log("Worse result! Rolling back...");
+  //   // await fs.unlink(getModelFile(ai.name, ai.generation));
+  //   await fs.unlink(getModelFile(ai.name, ai.generation + 1));
+  //   modelfile = getModelFile(ai.name, ai.generation - 1);
+  //   ai.generation -= 2;
+  // }
+  // else if(json_metrics['mean_reward'] >= ai.best_reward)
+  // {
+  //   ai.best_reward = json_metrics['mean_reward'];
+  //   ai.best_generation = ai.generation;
+  //   console.log(`New best reward ${ai.best_reward}`)
+  //   if(shouldPlotAIs.indexOf(ai.name) == -1)
+  //   {
+  //     shouldPlotAIs.push(ai.name);
+  //   }
+  // }
+  // else if(ai.generation == ai.best_generation) {
+  //   console.log("Already at current best generation, trying again...")
+  //   // modelfile = getModelFile(ai.name, ai.generation);
+  //   ai.generation -= 1;
+  // }
+  // else
+  // {
+  //   console.log("I shouldn't get here?")
+  // }
+
   // Set new model as active
   delete models[ai.name]
   const data = await fs.readFile(modelfile)

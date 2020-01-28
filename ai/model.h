@@ -41,6 +41,25 @@ enum class Action {
     MAX
 };
 
+const std::vector<std::string> action_names = {
+	"UP",
+	"DOWN",
+	"LEFT",
+	"RIGHT",
+	"UP_A",
+	"UP_B",
+	"DOWN_A",
+	"DOWN_B",
+	"LEFT_A",
+	"LEFT_B",
+	"RIGHT_A",
+	"RIGHT_B",
+	"A",
+	"B",
+	"START",
+	"SELECT"
+};
+
 constexpr size_t ACTION_SIZE = static_cast<size_t>(Action::MAX);
 
 typedef std::array<float, STATE_SIZE> StateType;
@@ -109,8 +128,8 @@ struct Model {
 	typedef Net<ACTION_SIZE> NetType;
 	Model(float lr) : net{std::make_shared<NetType>()},
 					  value_net{std::make_shared<Net<1>>()},
-					  optimizer(net->parameters(), lr),
-					  value_optimizer(value_net->parameters(), lr)
+					  optimizer(net->parameters(), torch::optim::AdamOptions(lr)),
+					  value_optimizer(value_net->parameters(), torch::optim::AdamOptions(0.1))
 	{
 	}
 
