@@ -8,4 +8,4 @@ struct Reward {
 };
 
 std::vector<float> normalize_rewards(std::vector<float>& rewards);
-float calculate_rewards(Model &experience);
+float calculate_rewards(Model &experience, float discount);

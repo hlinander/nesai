@@ -28,13 +28,13 @@ overmind: overmind.o replay.o reward.o
 libbrain.so: brain.o
 	g++ $< -shared $(LIBS) -o $@
 
-overmind.o: Makefile overmind.cpp model.h brain.h bm.h
+overmind.o: Makefile overmind.cpp model.h brain.h bm.h reward.h
 	g++ overmind.cpp $(INCLUDES) $(CPPFLAGS) -c
 
 replay.o: Makefile replay.cpp replay.h model.h
 	g++ replay.cpp $(INCLUDES) $(CPPFLAGS) -c
 
-reward.o: Makefile reward.cpp reward.h
+reward.o: Makefile reward.cpp reward.h model.h
 	g++ reward.cpp $(INCLUDES) $(CPPFLAGS) -c
 
 brain.o: Makefile brain.cpp model.h brain.h bm.h

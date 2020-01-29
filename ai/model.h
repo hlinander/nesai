@@ -15,7 +15,7 @@
 #include "bm.h"
 
 const int N_HIDDEN = 64U;
-const int RAM_SIZE = 0;//0x800;
+const int RAM_SIZE = 0x800;
 const int SCREEN_PIXELS = 32*30;
 const int STATE_SIZE = RAM_SIZE + SCREEN_PIXELS * 3;
 const float ACTION_THRESHOLD = 0.5f;
@@ -69,8 +69,8 @@ template <int N_OUTPUT>
 struct Net : torch::nn::Module {
 	Net() : device(get_device()) {
 		Benchmark nt("Net constrct");
-		bn1 = register_module("bn1", torch::nn::BatchNorm(N_HIDDEN));
-		bn2 = register_module("bn2", torch::nn::BatchNorm(N_HIDDEN));
+		// bn1 = register_module("bn1", torch::nn::BatchNorm(N_HIDDEN));
+		// bn2 = register_module("bn2", torch::nn::BatchNorm(N_HIDDEN));
 		fc1 = register_module("fc1", torch::nn::Linear(STATE_SIZE, N_HIDDEN));
 		fc2 = register_module("fc2", torch::nn::Linear(N_HIDDEN, N_HIDDEN));
 		fc3 = register_module("fc3", torch::nn::Linear(N_HIDDEN, N_OUTPUT));
@@ -118,8 +118,8 @@ struct Net : torch::nn::Module {
 		return false;
 	}
 
-	torch::nn::BatchNorm bn1{nullptr};
-	torch::nn::BatchNorm bn2{nullptr};
+	// torch::nn::BatchNorm bn1{nullptr};
+	// torch::nn::BatchNorm bn2{nullptr};
 	torch::nn::Linear fc1{nullptr}, fc2{nullptr}, fc3{nullptr};
 	torch::Device device;
 };
@@ -129,7 +129,7 @@ struct Model {
 	Model(float lr) : net{std::make_shared<NetType>()},
 					  value_net{std::make_shared<Net<1>>()},
 					  optimizer(net->parameters(), torch::optim::AdamOptions(lr)),
-					  value_optimizer(value_net->parameters(), torch::optim::AdamOptions(0.1))
+					  value_optimizer(value_net->parameters(), torch::optim::AdamOptions(0.01))
 	{
 	}
 
@@ -165,11 +165,11 @@ struct Model {
 		std::stringstream ss;
 		cereal::BinaryOutputArchive ar{ss};
 		{
-			Benchmark s("Serialization");
+			// Benchmark s("Serialization");
 			save(ar);
 		}
 		{
-			Benchmark f("Flush");
+			// Benchmark f("Flush");
 			std::ofstream out(filename, std::ios_base::binary);
 			auto serial{ ss.str() };
 			out.write(serial.c_str(), serial.length());
@@ -289,6 +289,7 @@ struct Model {
 		one_hot_actions.insert(one_hot_actions.end(), m.one_hot_actions.begin(), m.one_hot_actions.end());
 		immidiate_rewards.insert(immidiate_rewards.end(), m.immidiate_rewards.begin(), m.immidiate_rewards.end());
 		rewards.insert(rewards.end(), m.rewards.begin(), m.rewards.end());
+		normalized_rewards.insert(normalized_rewards.end(), m.normalized_rewards.begin(), m.normalized_rewards.end());
 		values.insert(values.end(), m.values.begin(), m.values.end());
 		adv.insert(adv.end(), m.adv.begin(), m.adv.end());
 	}
@@ -301,6 +302,8 @@ struct Model {
 		time_stamps.erase(time_stamps.begin() + frame);
 		immidiate_rewards.erase(immidiate_rewards.begin() + frame);
 		values.erase(values.begin() + frame);
+		rewards.erase(rewards.begin() + frame);
+		normalized_rewards.erase(normalized_rewards.begin() + frame);
 		adv.erase(adv.begin() + frame);
 	}
 
@@ -323,6 +326,7 @@ struct Model {
 	std::vector<uint32_t> time_stamps;
 	std::vector<float> immidiate_rewards;
 	std::vector<float> rewards;
+	std::vector<float> normalized_rewards;
 	std::vector<float> adv;
 	std::vector<float> values;
 };

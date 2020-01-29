@@ -2,9 +2,9 @@
 #include "reward.h"
 #include <curses.h>
 
-void replay(Model &m)
+void replay(Model &m, float discount)
 {
-    calculate_rewards(m);
+    calculate_rewards(m, discount);
     initscr();
     start_color();
     std::cout << "Color pairs: " << COLOR_PAIRS << std::endl;

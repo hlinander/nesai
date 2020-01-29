@@ -1,3 +1,4 @@
+#define CATCH_CONFIG_RUNNER
 #include <unistd.h>
 #include <vector>
 #include <unordered_map>
@@ -10,6 +11,7 @@
 #include "replay.h"
 #include "reward.h"
 #include "rds.hpp"
+#include "catch.hpp"
 
 #define DEBUG(...)
 
@@ -51,6 +53,25 @@ static float get_learning_rate()
 	return default_lr;
 }
 
+static float get_discount()
+{
+    const float default_discount = 0.8;
+	const char *discount = getenv("DISCOUNT");
+	if(discount)
+	{
+        try {
+		    return std::stof(discount);
+        }
+        catch(const std::invalid_argument& ia)
+        {
+            std::cout << "INVALID LEARNING RATE" << std::endl;
+            return default_discount;
+        }
+	}
+	return default_discount;
+}
+
+const float DISCOUNT = get_discount();
 const float LR = get_learning_rate();
 static int BATCH_SIZE = get_batch_size();
 const int PPO_EPOCHS = get_ppo_epochs();
@@ -70,36 +91,6 @@ void print_stats(const stat_map &s, size_t total_frames) {
 		}
 		std::cout << std::endl;
 	}
-}
-
-
-static std::string action_name(const ActionType &action)
-{
-    std::string s;
-    for(size_t i = 0; i < ACTION_SIZE; ++i)
-    {
-        if(action[i])
-        {
-            switch(static_cast<Action>(i))
-            {
-                case Action::A: s.append("A"); break;
-                case Action::B: s.append("B"); break;
-                case Action::SELECT: s.append("SELECT"); break;
-                case Action::START: s.append("START"); break;
-                case Action::UP: s.append("UP"); break;
-                case Action::DOWN: s.append("DOWN"); break;
-                case Action::LEFT: s.append("LEFT"); break;
-                case Action::RIGHT: s.append("RIGHT"); break;
-                default: s.append("WAT"); break;
-            }
-            s.append("|");
-        }
-    }
-    if(!s.empty())
-    {
-        s.pop_back();
-    }
-    return s;
 }
 
 void test_update_model();
@@ -184,7 +175,7 @@ void update_model_softmax(Model &m, Model &experience) {
 		auto old_logp = experience.forward_batch_nice(frame, frame + actual_bs);
 
 		for(size_t i = 0; i < actual_bs; ++i) {
-            rewards_batch[i] = experience.rewards[frame + i];
+            rewards_batch[i] = experience.normalized_rewards[frame + i];
             adv_batch[i] = experience.adv[frame + i];
             for(size_t j = 0; j < ACTION_SIZE; ++j) {
                 action_batch[i * ACTION_SIZE + j] = experience.actions[frame + i][j];
@@ -357,7 +348,7 @@ int main(int argc, const char *argv[])
             std::cout << "The horse has no carrot" << std::endl;
             return 1;
         }
-        replay(m);
+        replay(m, DISCOUNT);
     }
     else if(0 == strcmp(argv[1], "update_stdin"))
     {
@@ -424,7 +415,7 @@ int main(int argc, const char *argv[])
             Benchmark exp_agg("Experience aggregation");
             for(auto &e : experiences)
             {
-                float e_mean_reward = calculate_rewards(e);
+                float e_mean_reward = calculate_rewards(e, DISCOUNT);
                 mean_reward += e_mean_reward;
                 agg_experiences.append_experience(e);
             }
@@ -462,6 +453,7 @@ int main(int argc, const char *argv[])
             rds_data rds;
 
             rds["rewards"] = &experiences[0].rewards;
+            rds["normalized_rewards"] = &experiences[0].normalized_rewards;
             rds["advantage"] = &experiences[0].adv;
             rds["actions"] = &experiences[0].actions;
             rds["values"] = &experiences[0].values;
@@ -539,6 +531,7 @@ int main(int argc, const char *argv[])
     }
     else if(0 == strcmp(argv[1], "test"))
     {
+        int result = Catch::Session().run( argc - 1, argv + 1 );
         test_update_model();
     }
     else
@@ -575,8 +568,8 @@ void test_update_model() {
         exp.record_action(s2, a2, -100.0f, 1.0f);
         m1.record_action(s2, a2, -100.0f, 1.0f);
     }
-    calculate_rewards(exp);
-    calculate_rewards(m1);
+    calculate_rewards(exp, DISCOUNT);
+    calculate_rewards(m1, DISCOUNT);
     for(int i = 0; i < 200; ++i)
     {
         m1.optimizer.zero_grad();
@@ -584,7 +577,7 @@ void test_update_model() {
         m1.optimizer.step();
         m1.save_file("/tmp/m");
         exp.load_file("/tmp/m");
-        if(i % 2 == 0) {
+        if(i % 20 == 0) {
             auto pa = torch::softmax(m1.forward(s1), 1).to(torch::kCPU);
             auto s1a = m1.get_value(s1);
             auto s2a = m1.get_value(s2);

@@ -209,14 +209,14 @@ plot_all_rewards <- function() {
 
 plot_value_vs_reward <- function(data) {
 	sdata <- data[[1]]
-	rewards <- sdata$reward[1:min(2000, length(sdata$reward))]
+	rewards <- sdata$normalized_rewards[1:min(2000, length(sdata$normalized_rewards))]
 	values <- sdata$values[1:min(2000, length(sdata$values))]
 	crewards <- unlist(rewards)
 	cvalues <- unlist(values)
 	df <- data.frame(values=cvalues, rewards=crewards)
 	df$id = seq_len(nrow(df))
 	melted <- melt(df, id.vars="id", variable.name="series")
-	res <- ggplot(melted, aes(x=id, y=value, color=series)) + geom_point()
+	res <- ggplot(melted, aes(x=id, y=value, color=series)) + geom_point() + ggtitle("norm rewards vs value")
 	return(res)
 }
 
