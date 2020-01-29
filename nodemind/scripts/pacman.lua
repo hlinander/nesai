@@ -57,8 +57,8 @@ function brain_get_reward(frame)
 			nloads = nloads + 1
 		else
 			is_dead = true
-			return 0
 		end
+		return -100
 	end
 
 	next_save_frame = next_save_frame + 1

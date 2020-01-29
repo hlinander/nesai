@@ -164,6 +164,7 @@ void update_model_softmax(Model &m, Model &experience) {
     m.net->train();
     m.value_net->train();
     // std::cout << "update" << std::endl;
+    std::vector<float> v_loss;
 	for (int frame = 0; frame < experience.get_frames(); frame+=BATCH_SIZE) {
 		size_t actual_bs = std::min(BATCH_SIZE, experience.get_frames() - frame);
         if(actual_bs == 1) {
@@ -227,7 +228,7 @@ void update_model_softmax(Model &m, Model &experience) {
         //         //   << " elp: " << elp.mean().item<float>() 
         //           << " epelp: " << epelp.mean().item<float>() 
         //           << std::endl;
-        debug_log << "<R>: " << r.mean().item<float>() << std::endl;
+        // debug_log << "<R>: " << r.mean().item<float>() << std::endl;
 		auto lloss = torch::min(r * tadv_gpu, torch::clamp(r, 1.0 - 0.1, 1.0 + 0.1) * tadv_gpu);
         // std::cout << "adv: " << tadv_gpu.mean().item<float>() << std::endl;
         // auto lloss = epelp;// * tadv_gpu;
@@ -238,8 +239,11 @@ void update_model_softmax(Model &m, Model &experience) {
         m.value_optimizer.zero_grad();
         auto vloss = ((trewards_gpu - v) * (trewards_gpu - v)).mean();
         (vloss).backward();
+        v_loss.push_back(vloss.item<float>());
         m.value_optimizer.step();
 	}
+    auto tvloss = torch::tensor(v_loss);
+    debug_log << "value loss: " << tvloss.mean().item<float>() << std::endl;
 
 	DEBUG("Loss backwards\n");
 	DEBUG("Returning...\n");
@@ -373,7 +377,9 @@ int main(int argc, const char *argv[])
         std::cout << "Update!" << std::endl;
         std::cout << "Learning rate: " << LR << std::endl;
         std::experimental::filesystem::create_directories("logs/");
-        debug_log.open(std::string("logs/overmind") + argv[arg_generation] + ".log");
+        std::stringstream gen_str;
+        gen_str << std::setfill('0') << std::setw(5) << std::stoi(argv[arg_generation]);
+        debug_log.open(std::string("logs/overmind_") + argv[arg_name] + "_" + gen_str.str() + ".log");
         Benchmark full_ud("full_update");
         Model m(LR);
         Benchmark full_ud3("full_update3");

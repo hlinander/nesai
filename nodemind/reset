@@ -6,6 +6,7 @@ rm ai/*.json
 rm models/*
 rm metrics/*
 rm gifs/*
+rm logs/*
 rm public/gifs/*
 rm public/*.png
 for AI in $AIS
