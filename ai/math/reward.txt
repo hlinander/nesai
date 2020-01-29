@@ -1,0 +1,9 @@
+In[17]:= r ={0, 1, 2}
+v={0, 0, 1}
+Out[17]= {0,1,2}
+In[23]:= stddev[x_]:=StandardDeviation[x] * Sqrt[(Length[x]-1)/Length[x]]
+In[24]:= adv = r/stddev[r] - v
+Out[24]= {0,Sqrt[3/2],-1+Sqrt[6]}
+In[27]:= CForm[Simplify[(adv - Mean[adv])/stddev[adv]]]
+Out[27]//CForm=
+List((2 - 3*Sqrt(6))/(2.*Sqrt(11 - 3*Sqrt(6))),1/Sqrt(11 - 3*Sqrt(6)),(-4 + 3*Sqrt(6))/Sqrt(44 - 12*Sqrt(6)))
