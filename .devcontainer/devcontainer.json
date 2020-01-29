@@ -1,0 +1,5 @@
+{
+    "name": "nesai",
+    "image": "nesai",
+    "runArgs": ["--gpus=all"]
+}
