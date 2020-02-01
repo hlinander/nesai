@@ -6,6 +6,33 @@
 #include "catch.hpp"
 #include "model.h"
 
+unsigned long hash(unsigned char *str) {
+    unsigned long hash = 5381;
+    int c;
+
+    while (c = *str++) hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+
+    return hash;
+}
+
+float screen_sum(StateType &s) {
+    return std::accumulate(s.begin() + RAM_SIZE, s.end(), 0.0f);
+    // for(size_t i = 0; i < SCREEN_SIZE; ++i)
+    // {
+    //     s[i*3 + RAM_SIZE] = static_cast<float>((nes_screen[i] >> 16) & 255) / 255.0 - 0.5f;
+    // }
+}
+
+double sum_distance(std::set<float> sums, float sum) {
+    std::set<float> diffs;
+    std::transform(sums.begin(), sums.end(), diffs.begin(),
+                   [sum](float &s) { return fabs(s - sum); });
+    auto min = std::min_element(diffs.begin(), diffs.end());
+    if(min == diffs.end())
+	    return std::numeric::double::max();
+    return *min;
+}
+
 std::vector<float> min_max_rewards(std::vector<float> &rewards) {
     float min = *std::min_element(rewards.begin(), rewards.end());
     float max = *std::max_element(rewards.begin(), rewards.end());
@@ -60,10 +87,10 @@ float calculate_rewards(Model &experience, float discount) {
     std::fill(std::begin(experience.rewards), std::end(experience.rewards), 0.0f);
     std::fill(std::begin(experience.adv), std::end(experience.adv), 0.0f);
     float reward = 0.0;
+    std::set<double> screen_sums;
     for (int frame = experience.get_frames() - 1; frame >= 0; --frame) {
-        if (fabs(experience.immidiate_rewards[frame]) > 0.000000001) {
-            // debug_log << "f " << frame << ": " << experience.immidiate_rewards[frame] << ", ";
-        }
+	float 
+        screen_sums.insert(screen_sum(experience.states[frame]));
         reward *= discount;
         reward += experience.immidiate_rewards[frame];
         experience.rewards[frame] = reward;
