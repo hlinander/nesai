@@ -113,7 +113,7 @@ private:
     
     // Set the pixel directly. Performs blending.
     // Inlined because it's small and more efficient to inline it.
-    inline void Surface::rawset(int x, int y, Color src)
+    inline void rawset(int x, int y, Color src)
     {
         // Yay for no branching
         Color *destPtr = &m_pixels[x + y * m_width];

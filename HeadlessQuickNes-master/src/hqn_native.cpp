@@ -26,8 +26,6 @@ static bool is_human = false;
 static const char *gif = nullptr;
 static GifWriter g;
 
-static std::array<uint32_t, 32*30> mini_screen;
-
 static int frame = 0;
 
 #define GET_GUI() hqn::GUIController *gui = static_cast<hqn::GUIController*>(hqn_state.getListener())
@@ -117,7 +115,7 @@ static size_t state_size = 0;
 void load_state() {
 	if(state_data)
 	{
-		hqn_state.loadState(state_data, state_size);
+		hqn_state.loadState(static_cast<char *>(state_data), state_size);
 	}
 }
 
@@ -139,7 +137,7 @@ void save_state() {
 void save_state_disk() {
 	save_state();
 	auto sf = std::ofstream("/tmp/save", std::ios::out | std::ios::binary);
-	sf.write(state_data, state_size);
+	sf.write(static_cast<char *>(state_data), state_size);
 }
 
 void load_state_disk() {
@@ -153,7 +151,7 @@ void load_state_disk() {
 		}
 		state_data = malloc(size);
 		state_size = size;
-		sf.read(state_data, size);
+		sf.read(static_cast<char *>(state_data), size);
 		load_state();
 	}
 }
@@ -260,29 +258,7 @@ static int run_brain()
 		njoypad_set(0, bits);
 		nemu_frameadvance();
 		hqn_state.blit(frame_pixels, HQNState::NES_VIDEO_PALETTE, 0, 0, 0, 0);
-		for(int y = 0; y < 240 / 8; ++y)
-		{
-			for(int x = 0; x < 256 / 8; ++x)
-			{
-				// uint32_t hash = 0xFFFFFFFF;
-				uint32_t r = 0;
-				uint32_t g = 0;
-				uint32_t b = 0;
-				for(int i = 0; i < 8; ++i)
-				{
-					for(int j = 0; j < 8; ++j)
-					{
-						uint32_t idx = (y * 8 + j) * 256 + x * 8 + i;
-						// hash = (hash << 8) ^ crc32_table[((hash >> 24) ^ frame_pixels[idx]) & 255];
-						r += frame_pixels[idx] >> 16 & 0xff;
-						g += frame_pixels[idx] >> 8 & 0xff;
-						b += frame_pixels[idx] & 0xff;
-					}
-				}
-				// mini_screen[y * 32 + x] = frame_pixels[y * 8 * 256 + x * 8];//static_cast<float>(hash) / static_cast<float>(0xFFFFFFFF);
-				mini_screen[y * 32 + x] = ((b >> 6) << 16) | ((g >> 6) << 8) | (r >> 6) ;//static_cast<float>(hash) / static_cast<float>(0xFFFFFFFF);
-			}
-		}
+
 		frame++;
 		if(gif && !(frame&0xf))
 		{
@@ -307,11 +283,16 @@ static int run_brain()
 				}
 			}
 			}
-			for(int y = 0; y < 240 / 8; ++y)
+
+			uint32_t bs_w;
+			uint32_t bs_h;
+			const uint32_t *brain_screen = brain_get_screen(bs_w, bs_h);
+
+			for(uint32_t y = 0; y < bs_h; ++y)
 			{
-				for(int x = 0; x < 256 / 8; ++x)
+				for(uint32_t x = 0; x < bs_w; ++x)
 				{
-					frame_pixels[(y + 10) * 256 + x] = static_cast<int>(mini_screen[y * 32 + x]);
+					frame_pixels[(y + 10) * 256 + x] = static_cast<int>(brain_screen[y * bs_w + x]);
 				}
 			}
 
@@ -422,7 +403,9 @@ int main(int argc, const char *argv[])
 
 	for(;;)
 	{
-		brain_bind_cpu_mem(hqn_state.emu()->low_mem(), &mini_screen[0]);
+		memset(frame_pixels, 0, sizeof(frame_pixels));
+		brain_bind_nes(hqn_state.emu()->low_mem(), 
+			reinterpret_cast<const uint32_t *>(frame_pixels));
 
 		int rc = run_brain();
 

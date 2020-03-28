@@ -1,10 +1,12 @@
 #undef OPENGL
 #include "brain.h"
 #include "model.h"
+#include "lodepng.h"
 
 #include <stdlib.h>
 #include <iostream>
 #include <dlfcn.h>
+#include <fuzzy.h>
 
 #ifdef LUA_WITH_VERSION
 	#include <lua5.3/lua.hpp>
@@ -29,6 +31,10 @@ static const char* name = "noname";
 static const char * expfile = nullptr;
 
 static lua_State *L = nullptr;
+
+static uint32_t brain_screen[SCREEN_PIXELS];
+
+static std::vector<std::unique_ptr<char []>> frame_history;
 
 void save_state();
 void load_state();
@@ -108,10 +114,12 @@ static int brain_lua_log(lua_State *L)
 
 void brain_init()
 {
+
 	srand(time(0));
 	const char *script = getenv("BE");
 
 	torch::set_num_threads(1);
+	memset(brain_screen, 0, sizeof(brain_screen));
 
 	if(nullptr == script)
 	{
@@ -279,7 +287,7 @@ uint8_t brain_controller_bits()
 	return gp_bits;
 }
 
-void brain_bind_cpu_mem(const uint8_t *ram, const uint32_t *screen)
+void brain_bind_nes(const uint8_t *ram, const uint32_t *screen)
 {
 	cpu_ram = ram;
 	nes_screen = screen;
@@ -325,20 +333,114 @@ bool brain_on_frame(float *frame_reward, int *action_idx)
 		return false;
 	}
 	float reward = 0;
-	bool save_frame = get_reward(frame, reward);
+	bool save_it = get_reward(frame, reward);
+	save_it = true;
+
 	*frame_reward = reward;
 
 	StateType s;
 	for(size_t i = 0; i < RAM_SIZE; ++i) {
 		s[i] = static_cast<float>(cpu_ram[i]) / 255.0 - 0.5f;
 	}
+
+	for(int y = 0; y < SCREEN_H; ++y)
+	{
+		for(int x = 0; x < SCREEN_W; ++x)
+		{
+			// uint32_t hash = 0xFFFFFFFF;
+			uint32_t r = 0;
+			uint32_t g = 0;
+			uint32_t b = 0;
+
+			const int block_w = (256 / SCREEN_W);
+			const int block_h = (240 / SCREEN_H);
+
+			for(int i = 0; i < block_w; ++i)
+			{
+				for(int j = 0; j < block_h; ++j)
+				{
+					uint32_t idx = (y * block_w + j) * 256 + x * block_w + i;
+					r += nes_screen[idx] >> 16 & 0xff;
+					g += nes_screen[idx] >> 8 & 0xff;
+					b += nes_screen[idx] & 0xff;
+				}
+			}
+			brain_screen[y * SCREEN_W + x] = 0xFF000000 | ((b >> 6) << 16) | ((g >> 6) << 8) | (r >> 6);
+		}
+	}
+
+	std::unique_ptr<char []> hash(new char [FUZZY_MAX_RESULT]);
+	fuzzy_hash_buf(reinterpret_cast<const uint8_t *>(brain_screen),
+		sizeof(brain_screen), hash.get());
+
+	if(frame_history.size())
+	{
+		int most_similar = 0;
+		int at_frame = 0;
+		int sim_frame = 0;
+		for(const auto &it : frame_history)
+		{
+			int score = fuzzy_compare(it.get(), hash.get());
+			if(score > most_similar)
+			{
+				most_similar = score;
+				sim_frame = at_frame;
+			}
+			++at_frame;
+		}
+
+// #define DEBUG_FRAMES
+#ifdef DEBUG_FRAMES
+		std::cout << "Frame " << frame << " looks like " << sim_frame << ", score: " << most_similar << std::endl;
+		std::vector<uint32_t> png;
+		png.resize(SCREEN_PIXELS * 2);
+
+		const uint32_t full_w = (SCREEN_W * 2);
+
+		for(uint32_t y = 0; y < SCREEN_H; ++y)
+		{
+			memcpy(png.data() + (y * full_w),
+				brain_screen + (y * SCREEN_W),
+				SCREEN_W * 4);
+
+			if(!most_similar)
+			{
+				for(uint32_t x = 0; x < SCREEN_W; ++x)
+				{
+					png[SCREEN_W + (y * full_w) + x] = 0xFF0000FF;
+				}
+			}
+			else
+			{
+				const auto &sim = model.states[sim_frame];
+				for(uint32_t x = 0; x < SCREEN_W; ++x)
+				{
+					uint32_t idx = ((y * SCREEN_W) + x) * 3;
+					uint32_t rgb = 0xFF000000;
+					rgb |= (static_cast<uint32_t>((sim[RAM_SIZE + idx + 0] + 0.5f) * 255.0f) << 16);
+					rgb |= (static_cast<uint32_t>((sim[RAM_SIZE + idx + 1] + 0.5f) * 255.0f) << 8);
+					rgb |= (static_cast<uint32_t>((sim[RAM_SIZE + idx + 2] + 0.5f) * 255.0f) << 0);
+					png[SCREEN_W + (y * full_w) + x] = rgb;
+				}
+			}
+		}
+
+		std::stringstream kek;
+		kek << "test-" << frame << "-" << sim_frame << "-" << most_similar << ".png";
+		lodepng_encode32_file(kek.str().c_str(), (const uint8_t *)png.data(), SCREEN_W * 2, SCREEN_H);
+#endif
+	}
+
+	frame_history.emplace_back(std::move(hash));
+
+	// TODO - Do this garbage in the pass above that does literarly the exakt same thing.......
 	for(size_t i = 0; i < SCREEN_PIXELS; ++i) {
-		s[i*3 + RAM_SIZE] = static_cast<float>((nes_screen[i] >> 16) & 255) / 255.0 - 0.5f;
-		s[i*3 + RAM_SIZE + 1] = static_cast<float>((nes_screen[i] >> 8) & 255) / 255.0 - 0.5f;
-		s[i*3 + RAM_SIZE + 2] = static_cast<float>((nes_screen[i]) & 255) / 255.0 - 0.5f;
+		s[i*3 + RAM_SIZE] = static_cast<float>((brain_screen[i] >> 16) & 255) / 255.0 - 0.5f;
+		s[i*3 + RAM_SIZE + 1] = static_cast<float>((brain_screen[i] >> 8) & 255) / 255.0 - 0.5f;
+		s[i*3 + RAM_SIZE + 2] = static_cast<float>((brain_screen[i]) & 255) / 255.0 - 0.5f;
 	}
 	ActionType a = model.get_action(s);
-	for(int i = 0; i < ACTION_SIZE; ++i) {
+	for(uint32_t i = 0; i < ACTION_SIZE; ++i) {
 		if(a[i] == 1)
 		{
 			*action_idx = i;
@@ -346,7 +448,7 @@ bool brain_on_frame(float *frame_reward, int *action_idx)
 	}
 
 	float v = model.get_value(s);
-	if(save_frame)
+	if(save_it)
 	{
 		// std::cout << reward << std::endl;
 		// std::cout << v << std::endl;
@@ -406,10 +508,18 @@ bool brain_on_frame(float *frame_reward, int *action_idx)
 	{
 		std::cout << "FPS: " << fps << std::endl;
 		fps = 0;
-		next_fps = now + 100;
+		next_fps = now + 1000;
 	}
 	++frame;
 	return true;
+}
+
+const uint32_t *brain_get_screen(uint32_t &w, uint32_t &h)
+{
+	w = static_cast<uint32_t>(SCREEN_W);
+	h = static_cast<uint32_t>(SCREEN_H);
+
+	return brain_screen;
 }
 
 //

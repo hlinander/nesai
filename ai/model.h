@@ -16,8 +16,10 @@
 
 const int N_HIDDEN = 64U;
 const int RAM_SIZE = 0x800;
-const int SCREEN_PIXELS = 32*30;
-const int STATE_SIZE = RAM_SIZE + SCREEN_PIXELS * 3;
+const int SCREEN_W = 32;
+const int SCREEN_H = 30;
+const int SCREEN_PIXELS = SCREEN_W*SCREEN_H;
+const int STATE_SIZE = RAM_SIZE + (SCREEN_PIXELS * 3);
 const float ACTION_THRESHOLD = 0.5f;
 const float EPS_EXPLORE = 0.01f;
 

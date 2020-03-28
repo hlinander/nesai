@@ -24,6 +24,7 @@ static uint64_t swap_endian(uint64_t n)
 	return __builtin_bswap64(n);
 }
 
+#if 0
 template <typename T>
 static T read_int(std::ifstream &in)
 {
@@ -52,6 +53,7 @@ static double read_double(std::ifstream &in)
 	auto v = read_int<uint64_t>(in);
 	return *((double *)&v);
 }
+#endif
 
 template <typename T>
 static void write_int(std::ofstream &out, T n)
