@@ -32,8 +32,6 @@ ifneq ($(GPU),0)
 	LINKFLAGS += -lcuda
 endif
 
-LINKFLAGS += -lfuzzy
-
 CXXFLAGS = -std=c++11 -I ../quicknes -O3 -g -ggdb -Wno-multichar -fpermissive -fPIC \
 		   `pkg-config --cflags sdl2 lua5.3`
 

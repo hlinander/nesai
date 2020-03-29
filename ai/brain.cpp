@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <iostream>
 #include <dlfcn.h>
-#include <fuzzy.h>
 
 #ifdef LUA_WITH_VERSION
 	#include <lua5.3/lua.hpp>
@@ -34,7 +33,12 @@ static lua_State *L = nullptr;
 
 static uint32_t brain_screen[SCREEN_PIXELS];
 
-static std::vector<std::unique_ptr<char []>> frame_history;
+#define FRAME_HASH_W 8
+#define FRAME_HASH_H 8
+#define FRAME_HASH_PPW (SCREEN_W/FRAME_HASH_W)
+#define FRAME_HASH_PPH (1+(SCREEN_H/FRAME_HASH_H))
+
+static std::vector<std::unique_ptr<uint32_t []>> frame_history;
 
 void save_state();
 void load_state();
@@ -294,6 +298,32 @@ void brain_bind_nes(const uint8_t *ram, const uint32_t *screen)
 	brain_begin_rollout();
 }
 
+static int hash_compare(const uint32_t *lhs, const uint32_t *rhs)
+{
+#if 0
+	int res = FRAME_HASH_W * FRAME_HASH_H;
+	for(uint32_t i = 0; i < (FRAME_HASH_W * FRAME_HASH_H); ++i)
+	{
+		if(lhs[i] == rhs[i])
+		{
+			--res;
+		}
+	}
+#endif
+	int res = 0;
+	for(uint32_t i = 0; i < (FRAME_HASH_W * FRAME_HASH_H); ++i)
+	{
+		int diff = (lhs[i] & 0xFF) - (rhs[i] & 0xFF);
+		res += (diff * diff);
+		diff = ((lhs[i] >> 8) & 0xFF) - ((rhs[i] >> 8) & 0xFF);
+		res += (diff * diff);
+		diff = ((lhs[i] >> 16) & 0xFF) - ((rhs[i] >> 16) & 0xFF);
+		res += (diff * diff);
+	}
+
+	return res;
+}
+
 bool brain_on_frame(float *frame_reward, int *action_idx)
 {
 	if(!brain_enabled())
@@ -343,11 +373,14 @@ bool brain_on_frame(float *frame_reward, int *action_idx)
 		s[i] = static_cast<float>(cpu_ram[i]) / 255.0 - 0.5f;
 	}
 
+
+	std::unique_ptr<uint32_t []> hash(new uint32_t [FRAME_HASH_W * FRAME_HASH_H]);
+	memset(hash.get(), 0, sizeof(uint32_t) * FRAME_HASH_W * FRAME_HASH_H);
+
 	for(int y = 0; y < SCREEN_H; ++y)
 	{
 		for(int x = 0; x < SCREEN_W; ++x)
 		{
-			// uint32_t hash = 0xFFFFFFFF;
 			uint32_t r = 0;
 			uint32_t g = 0;
 			uint32_t b = 0;
@@ -365,23 +398,21 @@ bool brain_on_frame(float *frame_reward, int *action_idx)
 					b += nes_screen[idx] & 0xff;
 				}
 			}
-			brain_screen[y * SCREEN_W + x] = 0xFF000000 | ((b >> 6) << 16) | ((g >> 6) << 8) | (r >> 6);
+			uint32_t rgb = ((b >> 6) << 16) | ((g >> 6) << 8) | (r >> 6);
+			brain_screen[y * SCREEN_W + x] = 0xFF000000 | rgb;
+			hash[(x / FRAME_HASH_PPW) + ((y / FRAME_HASH_PPH) * FRAME_HASH_W)] += rgb;
 		}
 	}
 
-	std::unique_ptr<char []> hash(new char [FUZZY_MAX_RESULT]);
-	fuzzy_hash_buf(reinterpret_cast<const uint8_t *>(brain_screen),
-		sizeof(brain_screen), hash.get());
-
 	if(frame_history.size())
 	{
-		int most_similar = 0;
+		uint32_t most_similar = 0xFFFFFFFF;
 		int at_frame = 0;
 		int sim_frame = 0;
 		for(const auto &it : frame_history)
 		{
-			int score = fuzzy_compare(it.get(), hash.get());
-			if(score > most_similar)
+			int score = hash_compare(it.get(), hash.get());
+			if(score < most_similar)
 			{
 				most_similar = score;
 				sim_frame = at_frame;
@@ -389,11 +420,11 @@ bool brain_on_frame(float *frame_reward, int *action_idx)
 			++at_frame;
 		}
 
-// #define DEBUG_FRAMES
+#define DEBUG_FRAMES
 #ifdef DEBUG_FRAMES
 		std::cout << "Frame " << frame << " looks like " << sim_frame << ", score: " << most_similar << std::endl;
 		std::vector<uint32_t> png;
-		png.resize(SCREEN_PIXELS * 2);
+		png.resize(SCREEN_PIXELS * 4);
 
 		const uint32_t full_w = (SCREEN_W * 2);
 
@@ -403,31 +434,35 @@ bool brain_on_frame(float *frame_reward, int *action_idx)
 				brain_screen + (y * SCREEN_W),
 				SCREEN_W * 4);
 
-			if(!most_similar)
+			const auto &sim = model.states[sim_frame];
+			for(uint32_t x = 0; x < SCREEN_W; ++x)
 			{
-				for(uint32_t x = 0; x < SCREEN_W; ++x)
-				{
-					png[SCREEN_W + (y * full_w) + x] = 0xFF0000FF;
-				}
+				uint32_t idx = ((y * SCREEN_W) + x) * 3;
+				uint32_t rgb = 0xFF000000;
+				rgb |= (static_cast<uint32_t>((sim[RAM_SIZE + idx + 0] + 0.5f) * 255.0f) << 16);
+				rgb |= (static_cast<uint32_t>((sim[RAM_SIZE + idx + 1] + 0.5f) * 255.0f) << 8);
+				rgb |= (static_cast<uint32_t>((sim[RAM_SIZE + idx + 2] + 0.5f) * 255.0f) << 0);
+				png[SCREEN_W + (y * full_w) + x] = rgb;
 			}
-			else
+		}
+
+		for(uint32_t y = SCREEN_H; y < SCREEN_H*2; ++y)
+		{
+			uint32_t y_off = ((y - SCREEN_H) / FRAME_HASH_PPH) * FRAME_HASH_W;
+
+			for(uint32_t x = 0; x < SCREEN_W; ++x)
 			{
-				const auto &sim = model.states[sim_frame];
-				for(uint32_t x = 0; x < SCREEN_W; ++x)
-				{
-					uint32_t idx = ((y * SCREEN_W) + x) * 3;
-					uint32_t rgb = 0xFF000000;
-					rgb |= (static_cast<uint32_t>((sim[RAM_SIZE + idx + 0] + 0.5f) * 255.0f) << 16);
-					rgb |= (static_cast<uint32_t>((sim[RAM_SIZE + idx + 1] + 0.5f) * 255.0f) << 8);
-					rgb |= (static_cast<uint32_t>((sim[RAM_SIZE + idx + 2] + 0.5f) * 255.0f) << 0);
-					png[SCREEN_W + (y * full_w) + x] = rgb;
-				}
+				png[x + (y * full_w)] = 0xFF000000 | hash[y_off + x / FRAME_HASH_PPW];
+			}
+			for(uint32_t x = 0; x < SCREEN_W; ++x)
+			{
+				png[SCREEN_W + x + (y * full_w)] = 0xFF000000 | frame_history[sim_frame][y_off + x / FRAME_HASH_PPW];
 			}
 		}
 
 		std::stringstream kek;
 		kek << "test-" << frame << "-" << sim_frame << "-" << most_similar << ".png";
-		lodepng_encode32_file(kek.str().c_str(), (const uint8_t *)png.data(), SCREEN_W * 2, SCREEN_H);
+		lodepng_encode32_file(kek.str().c_str(), (const uint8_t *)png.data(), SCREEN_W * 2, SCREEN_H * 2);
 #endif
 	}
 
