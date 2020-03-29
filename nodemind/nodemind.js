@@ -367,7 +367,7 @@ async function advanceGeneration(ai) {
     + ai.generation + ' '
     + ai.name)
 
-  // console.log(stdout);
+  console.log(stdout);
     }
     catch(e)
     {

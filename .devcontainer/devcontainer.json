@@ -1,5 +1,6 @@
 {
     "name": "nesai",
     "image": "nesai",
-    "runArgs": ["--gpus=all"]
+    // "runArgs": ["--gpus=all"]
+    "runArgs": ["--runtime=nvidia"]
 }

@@ -180,7 +180,7 @@ void brain_init()
 		lua_pushcfunction(L, brain_lua_save_state);
 		lua_setglobal(L, "save_state");
 		model.net->eval();
-		model.value_net->eval();
+		// model.value_net->eval();
 	}
 
 	headless = bool_env("HL");
@@ -482,7 +482,7 @@ bool brain_on_frame(float *frame_reward, int *action_idx)
 		}
 	}
 
-	float v = model.get_value(s);
+	float v = 0.0f; //model.get_value(s);
 	if(save_it)
 	{
 		// std::cout << reward << std::endl;

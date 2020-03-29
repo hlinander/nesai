@@ -19,4 +19,4 @@ cp models/$AI.model models/$AI.0.model
 echo "$AI done"
 done
 fi
-DEBUG=yes node nodemind.js
+DEBUG=yes NO_CUDA=1 node nodemind.js

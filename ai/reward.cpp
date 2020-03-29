@@ -61,9 +61,6 @@ float calculate_rewards(Model &experience, float discount) {
     std::fill(std::begin(experience.adv), std::end(experience.adv), 0.0f);
     float reward = 0.0;
     for (int frame = experience.get_frames() - 1; frame >= 0; --frame) {
-        if (fabs(experience.immidiate_rewards[frame]) > 0.000000001) {
-            // debug_log << "f " << frame << ": " << experience.immidiate_rewards[frame] << ", ";
-        }
         reward *= discount;
         reward += experience.immidiate_rewards[frame];
         experience.rewards[frame] = reward;

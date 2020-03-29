@@ -5,6 +5,8 @@ library(reshape2)
 library(ggridges)
 library(tictoc)
 
+# options(error=recover)
+
 plot_parameters = function(data, type, layer, color) {
 	tic("preproc")
 	nplots <- min(c(length(data), 15))
@@ -14,6 +16,8 @@ plot_parameters = function(data, type, layer, color) {
 	sdata <- lapply(sdata, function(e) { e[[layer]]$values })
 	sdata <- lapply(sdata, unlist)
 	df <- data.frame(do.call(cbind, sdata))
+	# print(indices)
+	# print(colnames(df))
 	colnames(df) <- as.character(indices)
 	df$ids = seq_len(nrow(df))
 	df <- melt(df, id.vars="ids", variable.name = 'series')
@@ -117,10 +121,8 @@ plot_actions = function(data) {
 	adv <- adv[1:min(500, length(adv))]
 	df <- data.frame(do.call(rbind, actions))
 	df[, "adv"] <- adv
-	# print(df)
 	colnames(df) <- c("up", "down", "left", "right", "up_a", "up_b", "down_a", "down_b", "left_a", "left_b", "right_a", "right_b", "a", "b", "start", "select", "adv")
 	df$frame <- seq_len(nrow(df))
-	# print(head(df, n=10))
 	melted <- melt(df, id.vars=list("frame", "adv"), variable.name="button")
 	# print(head(melted, 10))
 	res <- ggplot(melted, aes(x=frame, y=value, color=adv)) + geom_col() + facet_grid(button~.) + scale_colour_gradientn(colours=rainbow(3))
@@ -129,19 +131,19 @@ plot_actions = function(data) {
 }
 
 plot_all = function(data, plot_file) {
-	w1 <- plot_parameters(data, 'parameters', 'fc1.weight', 'gray')
-	w2 <- plot_parameters(data, 'parameters', 'fc2.weight', 'gray')
-	w3 <- plot_parameters(data, 'parameters', 'fc3.weight', 'gray')
-	b1 <- plot_parameters(data, 'parameters', 'fc1.bias', 'gray')
-	b2 <- plot_parameters(data, 'parameters', 'fc2.bias', 'gray')
-	b3 <- plot_parameters(data, 'parameters', 'fc3.bias', 'gray')
+	w1 <- plot_parameters(data, 'parameters', 'Encoder.fc1.weight', 'gray')
+	w2 <- plot_parameters(data, 'parameters', 'Encoder.fc2.weight', 'gray')
+	# w3 <- plot_parameters(data, 'parameters', 'Encoder.fc3.weight', 'gray')
+	b1 <- plot_parameters(data, 'parameters', 'Encoder.fc1.bias', 'gray')
+	b2 <- plot_parameters(data, 'parameters', 'Encoder.fc2.bias', 'gray')
+	# b3 <- plot_parameters(data, 'parameters', 'Encoder.fc3.bias', 'gray')
 
-	dw1 <- plot_parameters(data, 'dparameters', 'fc1.weight', 'lightgreen')
-	dw2 <- plot_parameters(data, 'dparameters', 'fc2.weight', 'lightgreen')
-	dw3 <- plot_parameters(data, 'dparameters', 'fc3.weight', 'lightgreen')
-	db1 <- plot_parameters(data, 'dparameters', 'fc1.bias', 'lightgreen')
-	db2 <- plot_parameters(data, 'dparameters', 'fc2.bias', 'lightgreen')
-	db3 <- plot_parameters(data, 'dparameters', 'fc3.bias', 'lightgreen')
+	dw1 <- plot_parameters(data, 'dparameters', 'Encoder.fc1.weight', 'lightgreen')
+	dw2 <- plot_parameters(data, 'dparameters', 'Encoder.fc2.weight', 'lightgreen')
+	# dw3 <- plot_parameters(data, 'dparameters', 'Encoder.fc3.weight', 'lightgreen')
+	db1 <- plot_parameters(data, 'dparameters', 'Encoder.fc1.bias', 'lightgreen')
+	db2 <- plot_parameters(data, 'dparameters', 'Encoder.fc2.bias', 'lightgreen')
+	# db3 <- plot_parameters(data, 'dparameters', 'Encoder.fc3.bias', 'lightgreen')
 
 	mr <- plot_avg_rewards(data)
 	# rewards <- plot_rewards(data)
@@ -168,7 +170,8 @@ plot_all = function(data, plot_file) {
 	# print(actions)
 	# toc()
 	tic("grid")
-	plot <- grid.arrange(w1,w2,w3, b1,b2,b3,dw1,dw2,dw3, db1,db2,db3,mr,advantages, lengths, actions, nrow=3, layout_matrix=lay)
+	plot <- grid.arrange(w1,w2,w1, b1,b2,w1,dw1,dw2,w1, db1,db2,w1,mr,advantages, lengths, actions, nrow=3, layout_matrix=lay)
+	# plot <- w3 #grid.arrange(w1,w2,w3, b1,b2,b3,dw1,dw2,dw3, db1,db2,db3,mr,advantages, lengths, actions, nrow=3, layout_matrix=lay)
 	toc()
 	#print(plot)
 	# plot <- grid.arrange(w1,w2,w3, b1,b2,b3,dw1,dw2,dw3, db1,db2,db3,mr,rewards, lengths, nrow=3, layout_matrix=lay)
