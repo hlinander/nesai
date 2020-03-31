@@ -392,12 +392,17 @@ bool brain_on_frame(float *frame_reward, int *action_idx)
 
 	if(frame_history.size())
 	{
-		reward = (frame_history.size() > 60 ? 60 : frame_history.size()) * FRAME_HASH_W * FRAME_HASH_H;
+		size_t num_frames = ((frame_history.size() > 60) ? 60 : frame_history.size());
+		reward = num_frames * FRAME_HASH_W * FRAME_HASH_H;
 
-		for(int i = (int)(frame_history.size() - 1); i >= 0; --i)
+		// std::cout << "Reward starts at: " << reward << std::endl;
+
+		for(size_t i = (frame_history.size() - num_frames); i < frame_history.size(); ++i)
 		{
 			reward -= hash_compare(frame_history[i].get(), hash.get());
 		}
+
+		// std::cout << "Reward is now:   " << reward << std::endl;
 
 // #define DEBUG_FRAMES
 #ifdef DONT_DEFINE_THIS_IS_BROKE
