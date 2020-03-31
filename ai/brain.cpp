@@ -363,10 +363,9 @@ bool brain_on_frame(float *frame_reward, int *action_idx)
 		return false;
 	}
 	float reward = 0;
-	bool save_it = get_reward(frame, reward);
-	save_it = true;
+	// bool save_it = get_reward(frame, reward);
+	bool save_it = true;
 
-	*frame_reward = reward;
 
 	StateType s;
 	for(size_t i = 0; i < RAM_SIZE; ++i) {
@@ -419,8 +418,10 @@ bool brain_on_frame(float *frame_reward, int *action_idx)
 			}
 			++at_frame;
 		}
+		reward = most_similar;
+		*frame_reward = reward;
 
-#define DEBUG_FRAMES
+// #define DEBUG_FRAMES
 #ifdef DEBUG_FRAMES
 		std::cout << "Frame " << frame << " looks like " << sim_frame << ", score: " << most_similar << std::endl;
 		std::vector<uint32_t> png;
