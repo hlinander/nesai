@@ -300,27 +300,14 @@ void brain_bind_nes(const uint8_t *ram, const uint32_t *screen)
 
 static int hash_compare(const uint32_t *lhs, const uint32_t *rhs)
 {
-#if 0
-	int res = FRAME_HASH_W * FRAME_HASH_H;
+	int res = 0;
 	for(uint32_t i = 0; i < (FRAME_HASH_W * FRAME_HASH_H); ++i)
 	{
 		if(lhs[i] == rhs[i])
 		{
-			--res;
+			++res;
 		}
 	}
-#endif
-	int res = 0;
-	for(uint32_t i = 0; i < (FRAME_HASH_W * FRAME_HASH_H); ++i)
-	{
-		int diff = (lhs[i] & 0xFF) - (rhs[i] & 0xFF);
-		res += (diff * diff);
-		diff = ((lhs[i] >> 8) & 0xFF) - ((rhs[i] >> 8) & 0xFF);
-		res += (diff * diff);
-		diff = ((lhs[i] >> 16) & 0xFF) - ((rhs[i] >> 16) & 0xFF);
-		res += (diff * diff);
-	}
-
 	return res;
 }
 
@@ -405,24 +392,15 @@ bool brain_on_frame(float *frame_reward, int *action_idx)
 
 	if(frame_history.size())
 	{
-		uint32_t most_similar = 0xFFFFFFFF;
-		int at_frame = 0;
-		int sim_frame = 0;
-		for(const auto &it : frame_history)
+		reward = (frame_history.size() > 60 ? 60 : frame_history.size()) * FRAME_HASH_W * FRAME_HASH_H;
+
+		for(int i = (int)(frame_history.size() - 1); i >= 0; --i)
 		{
-			int score = hash_compare(it.get(), hash.get());
-			if(score < most_similar)
-			{
-				most_similar = score;
-				sim_frame = at_frame;
-			}
-			++at_frame;
+			reward -= hash_compare(frame_history[i].get(), hash.get());
 		}
-		reward = most_similar;
-		*frame_reward = reward;
 
 // #define DEBUG_FRAMES
-#ifdef DEBUG_FRAMES
+#ifdef DONT_DEFINE_THIS_IS_BROKE
 		std::cout << "Frame " << frame << " looks like " << sim_frame << ", score: " << most_similar << std::endl;
 		std::vector<uint32_t> png;
 		png.resize(SCREEN_PIXELS * 4);
@@ -547,6 +525,7 @@ bool brain_on_frame(float *frame_reward, int *action_idx)
 		next_fps = now + 1000;
 	}
 	++frame;
+	*frame_reward = reward;
 	return true;
 }
 
