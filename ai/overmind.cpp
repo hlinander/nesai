@@ -37,7 +37,7 @@ static int get_ppo_epochs()
 
 static float get_learning_rate()
 {
-    const float default_lr = 0.0001;
+    const float default_lr = 0.001;
 	const char *lr = getenv("LR");
 	if(lr)
 	{
@@ -55,23 +55,6 @@ static float get_learning_rate()
 	return default_lr;
 }
 
-static float get_discount()
-{
-    const float default_discount = 0.8;
-	const char *discount = getenv("DISCOUNT");
-	if(discount)
-	{
-        try {
-		    return std::stof(discount);
-        }
-        catch(const std::invalid_argument& ia)
-        {
-            std::cout << "INVALID LEARNING RATE" << std::endl;
-            return default_discount;
-        }
-	}
-	return default_discount;
-}
 
 const float DISCOUNT = get_discount();
 const float LR = get_learning_rate();
@@ -194,6 +177,7 @@ int main(int argc, const char *argv[])
     // {
     // }
     // debug_log.open("doom.log", std::ofstream::app);
+    std::experimental::filesystem::create_directories("mcts/");
 
     if(argc < 2)
     {

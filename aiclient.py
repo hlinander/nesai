@@ -141,6 +141,7 @@ def run_job(j):
 	env['MODEL'] = model_path
 	env['BE'] = f'/tmp/{name}.lua'
 	env['ROLLOUTS'] = str(j['rollouts'])
+	env['GENERATION'] = str(j['generation'])
 	p = subprocess.Popen(['./hqn_quicknes', f'/tmp/{name}.nes'], cwd='bin/', stdout=None, env=env)
 	p.wait()
 	

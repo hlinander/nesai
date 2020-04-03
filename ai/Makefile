@@ -1,7 +1,7 @@
 INCLUDES  = -I/pytorch/libtorch/include
 INCLUDES += -I/pytorch/libtorch/include/torch/csrc/api/include/
 INCLUDES += -Icereal-1.2.2/include
-CPPFLAGS  = -std=c++17 -O3 -Wall -fPIC -g -ggdb
+CPPFLAGS  = -std=c++17 -O2 -Wall -fPIC
 LIBS = -llua5.3 -ltorch -lc10 -lstdc++fs -lcurses
 
 ifeq ($(hampus), off)
@@ -20,12 +20,16 @@ endif
 
 .PHONY: all clean
 
-all: overmind libbrain.so
+all: overmind libai.a 
+# libbrain.so
 
-overmind: overmind.o replay.o reward.o
+overmind: model.o overmind.o replay.o reward.o tests.o
 	g++ $^ $(LIBS) -o $@
 
-libbrain.so: brain.o lodepng.o
+libai.a: brain.o lodepng.o reward.o model.o
+	ar -crs $@ $^
+
+libbrain.so: brain.o lodepng.o model.o
 	g++ $< -shared $(LIBS) -o $@
 
 lodepng.o: lodepng.h
@@ -40,8 +44,15 @@ replay.o: Makefile replay.cpp replay.h model.h
 reward.o: Makefile reward.cpp reward.h model.h
 	g++ reward.cpp $(INCLUDES) $(CPPFLAGS) -c
 
+tests.o: tests.cpp reward.cpp reward.h
+	g++ tests.cpp $(INCLUDES) $(CPPFLAGS) -c
+
 brain.o: Makefile brain.cpp model.h brain.h bm.h
 	g++ brain.cpp $(INCLUDES) $(CPPFLAGS) -c
+
+model.o: Makefile model.cpp model.h brain.h bm.h reward.h
+	g++ model.cpp $(INCLUDES) $(CPPFLAGS) -c
+
 
 clean:
 	rm -fr overmind libbrain.so *.o *.so

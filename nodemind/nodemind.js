@@ -54,7 +54,8 @@ function createJob(ai) {
     rollouts: ai.rollouts,
     ai: ai.name,
     rom: ai.rom,
-    script: ai.script
+    script: ai.script,
+    generation: ai.generation
   }
 }
 

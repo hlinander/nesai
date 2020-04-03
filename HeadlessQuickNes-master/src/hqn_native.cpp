@@ -323,7 +323,7 @@ static int run_brain()
 
 			// write_string(8, 208, std::to_string(rollout), 0xFF0000FF, 1, 1);
 			write_string(8, 218, keyout, 0xFFFFFFFF, 1, 2);
-			write_string(8 + (8*16) + 8, 218, std::to_string(static_cast<int>(total_reward)), 0xFF0000FF, 1, 2);
+			write_string(8 + (8*16) + 8, 218, std::to_string(static_cast<int>(total_reward/16)), 0xFF0000FF, 1, 2);
 			write_string(8, 200, action_names[action_idx], 0xFFFFFFFF, 1, 2);
 			GifWriteFrame(&g, reinterpret_cast<uint8_t *>(frame_pixels), 256, 240, 1);
 			total_reward = 0;

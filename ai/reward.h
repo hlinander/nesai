@@ -1,5 +1,6 @@
+#pragma once
+
 #include <vector>
-#include "model.h"
 
 struct Reward {
 	std::vector<float> rewards;
@@ -7,5 +8,8 @@ struct Reward {
 	float total_reward;
 };
 
+struct Model;
+
 std::vector<float> normalize_rewards(std::vector<float>& rewards);
 float calculate_rewards(Model &experience, float discount);
+float get_discount();

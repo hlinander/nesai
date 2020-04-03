@@ -5,7 +5,7 @@ ifeq ($(lib), yes)
 TARGET = ../libhqnes.so
 
 LINKFLAGS = -L ../quicknes/ -lSDL2_ttf -lquicknes -ldl `pkg-config --libs sdl2 luajit -shared`
-CXXFLAGS = -std=c++11 -I ../quicknes -O3 -Wno-multichar -fno-exceptions -fpermissive -fPIC \
+CXXFLAGS = -std=c++17 -I ../quicknes -O3 -Wno-multichar -fno-exceptions -fpermissive -fPIC \
 		   `pkg-config --cflags sdl2 luajit` -g -ggdb
 
 SOURCES = \
@@ -26,13 +26,13 @@ else
 
 TARGET = ../hqn_quicknes
 
-LINKFLAGS = -L ../quicknes/ -lSDL2_ttf -llua5.3 -ltorch -lc10 -lquicknes -ldl `pkg-config --libs sdl2`
+LINKFLAGS = -L../../ai -L ../quicknes/ -lai -lSDL2_ttf -llua5.3 -ltorch -lc10 -lquicknes -ldl `pkg-config --libs sdl2` -lstdc++fs
 
 ifneq ($(GPU),0)
 	LINKFLAGS += -lcuda
 endif
 
-CXXFLAGS = -std=c++11 -I ../quicknes -O3 -g -ggdb -Wno-multichar -fpermissive -fPIC \
+CXXFLAGS = -std=c++17 -I ../quicknes -O3 -g -ggdb -Wno-multichar -fpermissive -fPIC \
 		   `pkg-config --cflags sdl2 lua5.3`
 
 CXXFLAGS += -I../../ai
@@ -44,9 +44,7 @@ SOURCES = \
 	../src/hqn_util.cpp \
 	../src/hqn_gui_controller.cpp \
 	../src/hqn_surface.cpp \
-	../src/hqn_native.cpp \
-	../../ai/brain.cpp \
-	../../ai/lodepng.cpp
+	../src/hqn_native.cpp
 
 endif
 
@@ -57,7 +55,7 @@ OBJECTS = $(SOURCES:.cpp=.o) \
 	$(CXX) -c -o $@ $< $(CXXFLAGS)
 
 # Build as shared library
-$(TARGET): $(OBJECTS) $(LIB_QUICKNES)
+$(TARGET): $(OBJECTS) $(LIB_QUICKNES) ../../ai/libai.a
 	$(CXX) -o $@ $(OBJECTS) $(LINKFLAGS) -fPIC
 
 $(LIB_QUICKNES):

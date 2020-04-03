@@ -13,6 +13,7 @@
 #include <cereal/types/array.hpp>
 #include <cereal/types/list.hpp>
 #include "bm.h"
+#include "reward.h"
 
 const int N_HIDDEN = 64U;
 const int RAM_SIZE = 0x800;
@@ -22,6 +23,7 @@ const int SCREEN_PIXELS = SCREEN_W*SCREEN_H;
 const int STATE_SIZE = RAM_SIZE + (SCREEN_PIXELS * 3);
 const float ACTION_THRESHOLD = 0.5f;
 const float EPS_EXPLORE = 0.01f;
+const float GAMMA = get_discount();
 
 enum class Action
 {
@@ -235,11 +237,51 @@ struct Net : torch::nn::Module
 	torch::Device device;
 };
 
+struct Model;
+
+struct MCTSNode {
+	struct params {
+		params(float gamma) : 
+			gamma(gamma),
+			qmax(-INFINITY),
+			qmin(INFINITY) {}
+
+		std::vector<MCTSNode *> path;
+		float gamma;
+		float qmin;
+		float qmax;
+	};
+	torch::Tensor hidden;
+	size_t N;
+	float R;
+	float Q;
+	float Qnorm;
+	std::array<float, ACTION_SIZE> P;
+	std::vector<std::unique_ptr<MCTSNode>> children;
+
+	MCTSNode();
+
+	void init_root(Model &m, StateType &s);
+	void populate(Output o);
+	void one_simulation(Model &m, params &p);
+private:
+	void step(Model &m, params &p);
+public:
+	float nsum() const;
+	// children[action_idx] = 
+	void update_statistics(params &p);
+	size_t sample_action(float T) const;
+	std::string to_dot_internal(int idx, int depth);
+	void to_dot(std::string out_file);
+};
+
+
 struct Model
 {
 	// typedef Net<ACTION_SIZE> NetType;
 	Model(float lr) : net{std::make_shared<Net>()},
-					  optimizer(net->parameters(), torch::optim::AdamOptions(lr))
+					  optimizer(net->parameters(), torch::optim::AdamOptions(lr)),
+					  n_saved_trees(0)
 
 	//   value_optimizer(value_net->parameters(), torch::optim::AdamOptions(0.01))
 	{
@@ -328,11 +370,7 @@ struct Model
 	// torch::Tensor forward_batch_nice(size_t first, size_t last) {
 	// 	return net->forward(get_batch(first, last));
 	// }
-	torch::Tensor get_state(size_t n)
-	{
-		auto ret = torch::from_blob(static_cast<void *>(states.data() + n), {1, STATE_SIZE}, torch::kFloat32);
-		auto dret = ret.to(net->device);
-	}
+	
 
 	Output initial_forward(StateType &s)
 	{
@@ -348,86 +386,26 @@ struct Model
 		return net->recurrent_forward(rdts, a);
 	}
 
-	ActionType get_action(StateType &s)
+	ActionType get_action(StateType &s, int simulations = 25, std::string id = "")
 	{
-		auto initial = initial_forward(s);
-
-		torch::Tensor out = torch::softmax(initial.policy, 1).to(torch::kCPU);
-		torch::Tensor sample = torch::multinomial(out, 5, false, nullptr);
-		auto sample_a = sample.accessor<long, 2>();
-
-		float best_value = -10000.0f;
-		ActionType best_action;
-		// std::cout << out << std::endl;
-		// std::cout << sample << std::endl;
-		for(int i = 0; i < 5; ++i)
+		MCTSNode root;
+		root.init_root(*this, s);
+		MCTSNode::params p(GAMMA);
+		for(int i = 0; i < simulations; ++i)
 		{
-			ActionType a;
-			a.fill(0);
-			a[sample_a[0][i]] = 1;
-			auto output = net->recurrent_forward(initial.hidden, a);
-			float value = output.value.item<float>();
-			if(value > best_value) 
-			{
-				best_value = value;
-				best_action = a;
-			}
-
+			root.one_simulation(*this, p);
 		}
-
-		// auto sample_a = sample.accessor<long, 2>();
-		// auto action = ActionType();
-		// action[static_cast<size_t>(sample_a[0][0])] = 1;
-		return best_action;
+		if(rand() % 100 == 0)
+		{
+			root.to_dot(std::string("mcts/") + id + std::string("_") + std::to_string(n_saved_trees));
+			++n_saved_trees;
+		}
+		size_t action_idx = root.sample_action(100.0f);
+		ActionType a;
+		a.fill(0);
+		a[action_idx] = 1;
+		return a;
 	}
-	// 	actions[static_cast<size_t>(sample_a[0][0])] = 1;
-	// 	return actions;
-
-	// auto ts = torch::from_blob(static_cast<void*>(s.data()), {1, STATE_SIZE}, torch::kFloat32);
-
-	// torch::Tensor get_batch(size_t first, size_t last) {
-	// 	auto ret = torch::from_blob(static_cast<void *>(states.data() + first), {static_cast<long>(last - first), STATE_SIZE}, torch::kFloat32);
-	// 	// std::cout << "state mean " << ret.mean() << std::endl;
-	// 	auto dret = ret.to(net->device);
-	// 	return dret;
-	// }
-
-	// torch::Tensor forward_batch_nice(torch::Tensor t) {
-	// 	return net->forward(t);
-	// }
-
-	// float get_value(StateType &s) {
-	// 	auto ts = torch::from_blob(static_cast<void*>(s.data()), {1, STATE_SIZE}, torch::kFloat32);
-	// 	auto dts = ts.to(net->device);
-	// 	auto tout = value_net->forward(dts).to(torch::kCPU);
-	// 	return tout.item<float>();
-	// }
-
-	// ActionType get_action(StateType &s) {
-	// 	auto ts = torch::from_blob(static_cast<void*>(s.data()), {1, STATE_SIZE}, torch::kFloat32);
-	// 	auto dts = ts.to(net->device);
-	// 	auto tout = net->forward(dts);
-	// 	const size_t n_samples = 1;
-	// 	torch::Tensor out = torch::softmax(tout, 1).to(torch::kCPU);
-	// 	torch::Tensor argmax = torch::argmax(out, 1).to(torch::kCPU);
-	// 	torch::Tensor sample = torch::multinomial(out, n_samples, false, nullptr);
-	// 	auto sample_a = sample.accessor<long, 2>();
-	// 	// for(int i = 0; i < n_samples; ++i) {
-	// 	// 	auto vt = value_net->forward(dts).to(torch::kCPU);
-	// 	// 	float v = vt.item<float>();
-	// 	// }
-	// 	// auto argmax_a = argmax.accessor<long,1>();
-	// 	// std::cout << out << std::endl;
-	// 	// std::cout << sample << std::endl;
-	// 	// std::cout << "NEW SAMPLE" << std::endl;
-	// 	// std::cout << "ARGMAX" << argmax  << " p: " << out[0][argmax_a[0]]<< std::endl;
-	// 	// std::cout << "SAMPLE" << sample << std::endl;
-	//     std::array<uint8_t, ACTION_SIZE> actions;
-	// 	actions.fill(0);
-	// 	// actions[static_cast<size_t>(argmax_a[0])] = 1;
-	// 	actions[static_cast<size_t>(sample_a[0][0])] = 1;
-	// 	return actions;
-	// }
 
 	void record_action(StateType &s, ActionType a, float immidiate_reward, float value)
 	{
@@ -498,4 +476,5 @@ struct Model
 	std::vector<float> normalized_rewards;
 	std::vector<float> adv;
 	std::vector<float> values;
+	int n_saved_trees;
 };

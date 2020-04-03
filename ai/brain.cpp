@@ -2,6 +2,7 @@
 #include "brain.h"
 #include "model.h"
 #include "lodepng.h"
+#include <experimental/filesystem>
 
 #include <stdlib.h>
 #include <iostream>
@@ -19,6 +20,7 @@ static torch::NoGradGuard guard;
 static Model model{0.001};
 
 static uint32_t rollouts = 1;
+static uint32_t generation = 0;
 static bool enabled = false;
 static bool headless = false;
 static bool show_fps = false;
@@ -124,6 +126,7 @@ void brain_init()
 
 	torch::set_num_threads(1);
 	memset(brain_screen, 0, sizeof(brain_screen));
+    std::experimental::filesystem::create_directories("mcts/");
 
 	if(nullptr == script)
 	{
@@ -150,6 +153,12 @@ void brain_init()
 		if(nullptr != ro)
 		{
 			rollouts = static_cast<uint32_t>(atoi(ro));
+		}
+
+		const char *g = getenv("GENERATION");
+		if(nullptr != g)
+		{
+			generation = static_cast<uint32_t>(atoi(g));
 		}
 
 		enabled = true;
@@ -458,7 +467,7 @@ bool brain_on_frame(float *frame_reward, int *action_idx)
 		s[i*3 + RAM_SIZE + 1] = static_cast<float>((brain_screen[i] >> 8) & 255) / 255.0 - 0.5f;
 		s[i*3 + RAM_SIZE + 2] = static_cast<float>((brain_screen[i]) & 255) / 255.0 - 0.5f;
 	}
-	ActionType a = model.get_action(s);
+	ActionType a = model.get_action(s, 25, std::string("tree_") + std::to_string(generation));
 	for(uint32_t i = 0; i < ACTION_SIZE; ++i) {
 		if(a[i] == 1)
 		{

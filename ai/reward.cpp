@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <unordered_map>
 #include <vector>
-#include "catch.hpp"
 #include "model.h"
 
 std::vector<float> min_max_rewards(std::vector<float> &rewards) {
@@ -67,36 +66,31 @@ float calculate_rewards(Model &experience, float discount) {
         // ret.adv[frame] = reward;// - experience.values[frame];
     }
     experience.normalized_rewards = normalize_std(experience.rewards);
-    std::transform(experience.normalized_rewards.begin(), experience.normalized_rewards.end(),
-                   experience.values.begin(), experience.adv.begin(),
-                   [](float &reward, float &value) { return reward - value; });
-    experience.adv = normalize_mean_std(experience.adv);
+    // std::transform(experience.normalized_rewards.begin(), experience.normalized_rewards.end(),
+    //                experience.values.begin(), experience.adv.begin(),
+    //                [](float &reward, float &value) { return reward - value; });
+    experience.adv = normalize_mean_std(experience.rewards);
 
-    float total_reward = std::accumulate(experience.normalized_rewards.begin(),
-                                         experience.normalized_rewards.end(), 0.0f);
+    float total_reward = std::accumulate(experience.rewards.begin(),
+                                         experience.rewards.end(), 0.0f);
     return total_reward / static_cast<float>(experience.get_frames());
 }
 
-TEST_CASE("calculate_rewards") {
-    Model m(0.0);
-    StateType s;
-    ActionType a;
-    m.record_action(s, a, 0.0, 0.0); 
-    m.record_action(s, a, 1.0, 0.0); 
-    m.record_action(s, a, 2.0, 1.0); 
-
-    calculate_rewards(m, 0.0);
-
-    REQUIRE(m.rewards[0] == 0.0);
-    REQUIRE(m.rewards[1] == 1.0);
-    REQUIRE(m.rewards[2] == 2.0);
-
-    REQUIRE(m.normalized_rewards[0] == Approx(0.0));
-    REQUIRE(m.normalized_rewards[1] == Approx(1.0 / sqrt(2.0/3.0)));
-    REQUIRE(m.normalized_rewards[2] == Approx(2.0 / sqrt(2.0/3.0)));
-
-	REQUIRE(m.adv[0] == Approx((2 - 3*sqrt(6))/(2.*sqrt(11 - 3*sqrt(6)))));
-	REQUIRE(m.adv[1] == Approx(1/sqrt(11 - 3*sqrt(6))));
-	REQUIRE(m.adv[2] == Approx((-4 + 3*sqrt(6))/sqrt(44 - 12*sqrt(6))));
-
+float get_discount()
+{
+    const float default_discount = 0.995;
+	const char *discount = getenv("DISCOUNT");
+	if(discount)
+	{
+        try {
+		    return std::stof(discount);
+        }
+        catch(const std::invalid_argument& ia)
+        {
+            std::cout << "INVALID LEARNING RATE" << std::endl;
+            return default_discount;
+        }
+	}
+	return default_discount;
 }
+
