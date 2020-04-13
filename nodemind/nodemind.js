@@ -322,7 +322,7 @@ async function generateGif(ai) {
     'FPS': "0",
     'EXPFILE': "",
     'GIF': gif,
-    'MAX_FRAMES': 3000,
+    'MAX_FRAMES': 500,
     'RESET': true
   }
   env = Object.assign(env, process.env);

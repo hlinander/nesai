@@ -2,6 +2,8 @@
 #include <vector>
 #include <string>
 #include <fstream>
+#include <algorithm>
+#include "dirichlet.h"
 
 MCTSNode::MCTSNode() : N(0U), R(0.0f), Q(0.0f)
 {
@@ -40,11 +42,19 @@ std::string MCTSNode::to_dot_internal(int idx, int depth)
 void MCTSNode::init_root(Model &m, StateType &s)
 {
     populate(m.initial_forward(s));
-    float frac = 1.0;
+    // std::cout << "root: [";
     for(int i = 0; i < ACTION_SIZE; ++i)
     {
-        P[i] = (1 - frac) * P[i] + frac * (1.0 / ACTION_SIZE);
+        // std::cout << P[i] << ", ";
     }
+    // std::cout << "]" << std::endl;
+    size_t idx = rand() % dirichlet.size();
+    float frac = 0.25;
+    for(int i = 0; i < ACTION_SIZE; ++i)
+    {
+        P[i] = (1 - frac) * P[i] + frac * dirichlet[idx][i];
+    }
+    // N = 1;
 }
 void MCTSNode::populate(Output o)
 {
@@ -71,9 +81,17 @@ void MCTSNode::step(Model &m, params &p) {
     constexpr float c2 = 19625.0f;
     float max_vinst = -INFINITY;
     float Nsum = N;//nsum();
-    size_t max_i = 0;
-    // std::cout << std::endl;
-    for(size_t i = 0; i < children.size(); ++i) {
+    size_t max_i = 5;
+    std::array<size_t, ACTION_SIZE> perm;
+    for(int i = 0; i < ACTION_SIZE; ++i)
+    {
+        perm[i] = i;
+    }
+    std::random_shuffle(perm.begin(), perm.end());
+    // if(p.path.size() == 0)
+    //     std::cout << "root step: [";
+    for(size_t j = 0; j < children.size(); ++j) {
+        size_t i = perm[j];
         auto &n = children[i];
         float Q = n->Q;
         if(p.qmax > p.qmin) {
@@ -81,27 +99,30 @@ void MCTSNode::step(Model &m, params &p) {
         }
         // std::cout << n->R + Q << ", ";
         float vinst = n->R + Q + P[i] * sqrt(Nsum) / (1.0f + n->N) * (c1 + log((Nsum + c2 + 1) / c2));
+        // if(p.path.size() == 0)
+        //     std::cout << vinst << ", ";
         if(vinst > max_vinst) {
             max_i = i;
             max_vinst = vinst;
         }
     }
+    // if(p.path.size() == 0)
+    //     std::cout << "]" << std::endl;
+    // if(p.path.size() == 0)
+    //     std::cout << "maxQ: " << max_i << std::endl;
     // std::cout << std::endl;
     p.path.push_back(this);
-    if(!children.empty())
+    if(children[max_i]->children.empty())
     {
-        if(children[max_i]->children.empty())
-        {
-            ActionType max_action;
-            max_action.fill(0);
-            max_action[max_i] = 1;
-            children[max_i]->populate(m.net->recurrent_forward(hidden, max_action));
-            p.path.push_back(children[max_i].get());
-        }
-        else
-        {
-            children[max_i]->step(m, p);
-        }
+        ActionType max_action;
+        max_action.fill(0);
+        max_action[max_i] = 1;
+        children[max_i]->populate(m.net->recurrent_forward(hidden, max_action));
+        p.path.push_back(children[max_i].get());
+    }
+    else
+    {
+        children[max_i]->step(m, p);
     }
 }
 float MCTSNode::nsum() const {
@@ -145,12 +166,20 @@ size_t MCTSNode::sample_action(float T) const
             return pow(child->N, 1.0 / T) / Nsump; 
     });
     float sum = 0;
+    // std::cout << "action" << std::endl;
+    // std::cout << "dist: [";
+    // for(int i = 0; i < ACTION_SIZE; ++i)
+    // {
+    //     std::cout << distribution[i] << ", ";
+    // }
+    // std::cout << "]" << std::endl;
     // r = 0.85
     // [0.1, 0.2, 0.5, 0.2]
     for(int i = 0; i < ACTION_SIZE; ++i)
     {
         if(r >= sum && r < sum + distribution[i])
         {
+            // std::cout << "choosen: " << i << std::endl;
             return i;
         }
         sum += distribution[i];

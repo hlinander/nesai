@@ -18,26 +18,30 @@
 static int get_batch_size()
 {
 	const char *bs = getenv("BATCH_SIZE");
+    int batch_size = 4;
 	if(bs)
 	{
-		return atoi(bs);
+		batch_size = atoi(bs);
 	}
-	return 5;
+    std::cout << "BATCH_SIZE " << batch_size << std::endl;
+	return batch_size;
 }
 
 static int get_ppo_epochs()
 {
 	const char *bs = getenv("PPO_EPOCHS");
+    int ppo = 1;
 	if(bs)
 	{
-		return atoi(bs);
+		ppo = atoi(bs);
 	}
-	return 1;
+    std::cout << "PPOEPOCHS " << ppo << std::endl;
+	return ppo;
 }
 
 static float get_learning_rate()
 {
-    const float default_lr = 0.001;
+    const float default_lr = 0.01;
 	const char *lr = getenv("LR");
 	if(lr)
 	{
@@ -78,7 +82,23 @@ void print_stats(const stat_map &s, size_t total_frames) {
 	}
 }
 
+void save_state(StateType &s, std::string filename)
+{
+    std::ofstream f(filename);
+    f << "P2" << std::endl;
+    f << "32 " << int(STATE_SIZE / 32) << std::endl;
+    f << "255" << std::endl;
+    for(int i = 0; i < STATE_SIZE; ++i)
+    {
+        uint8_t value = static_cast<uint8_t>(255.0 * (s[i] + 0.5));
+        f << std::to_string(value) + std::string(" ");
+        if(i % 32 == 0)
+            f << std::endl;
+    }
+}
+
 void test_update_model();
+void test_decoder();
 
 // void analyze_step(Model &after, Model &experience) {
 // 	// Reward reward = calculate_rewards(experience);
@@ -133,39 +153,57 @@ void distill(Model &exp)
     std::cout << "ACTIVE FRAMES: " << active_frames << std::endl;
 }
 
-void update_model_softmax(Model &m, Model &experience) {
+float update_model_softmax(Model &m, Model &experience, size_t batch_size, size_t unroll_size) {
     m.net->train();
-	for (int frame = 0; frame < experience.get_frames(); frame+=BATCH_SIZE) {
-        // std::cout << "#" << std::flush;
-		size_t actual_bs = std::min(BATCH_SIZE, experience.get_frames() - frame);
-        if(actual_bs == 1) {
-            break;
+    m.optimizer.zero_grad();
+    int it = 0;
+    float total_loss = 0.0f;
+    std::vector<std::vector<size_t>> batches;
+    size_t n_starts = experience.get_frames() - batch_size;
+    size_t n_batches = n_starts / batch_size;
+    batches.resize(n_batches);
+    for(auto &batch: batches)
+    {
+        batch.resize(batch_size);
+        for(auto& start: batch)
+        {
+            float frac = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+            start = static_cast<size_t>(frac * (experience.get_frames() - batch_size));
         }
-        torch::Tensor loss = torch::tensor({0.0f});
-        // Output next = m.net->initial_forward(experience.get_state(frame));
-        Output next = m.initial_forward(experience.states[frame]);
+    }
+	for (auto& batch: batches)
+    {
+        std::cout << "." << std::flush;
+        torch::Tensor loss = torch::tensor({0.0f}).to(experience.net->device);
+        for(size_t frame: batch)
+        {
+            Output next = m.initial_forward(experience.states[frame]);
 
-        for(int sim = 0; sim < BATCH_SIZE; ++sim) {
-            if(sim > 0) {
-                next = m.net->recurrent_forward(next.hidden, experience.actions[frame + sim]);
+            for(int sim = 0; sim < unroll_size; ++sim) {
+                if(sim > 0) {
+                    next = m.net->recurrent_forward(next.hidden, experience.actions[frame + sim]);
+                }
+                print_size("next.reward", next.reward);
+                print_size("next.value", next.value);
+                print_size("next.policy", next.policy);
+                auto action = device_tensor(experience.actions[frame + sim], experience.net->device, torch::kUInt8, torch::kLong);
+                auto action_tensor = torch::argmax(action, c10::nullopt, true).reshape({1});
+                print_size("Action tensor ", action_tensor);
+                loss += (next.reward[0] - experience.immidiate_rewards[frame + sim]) * (next.reward[0] - experience.immidiate_rewards[frame + sim]);
+                loss += (next.value[0] - experience.rewards[frame + sim]) * (next.value[0] - experience.rewards[frame + sim]);
+                auto sm = torch::log_softmax(next.policy, 1);
+                print_size("softmax tensor", sm);
+                loss += torch::nll_loss(sm, action_tensor);
+                // std::cout << "After loss" << std::endl;
+                total_loss += loss.item<float>();
             }
-            // for(auto &it: experience.actions[frame + sim])
-            //     std::cout << int(it) << ", ";
-            auto action = device_tensor(experience.actions[frame + sim], experience.net->device, torch::kUInt8, torch::kLong);
-            // std::cout << action << std::endl;
-            auto action_tensor = torch::argmax(action, c10::nullopt, true).reshape({1});
-            // std::cout << action_tensor[0].item<float>() << " : ";
-            // std::cout << "I: " << experience.immidiate_rewards[frame + sim] << std::endl;
-            // std::cout << "R: " << experience.rewards[frame + sim] << std::endl;
-            loss += (next.reward[0] - experience.immidiate_rewards[frame + sim]) * (next.reward[0] - experience.immidiate_rewards[frame + sim]);
-            loss += (next.value[0] - experience.rewards[frame + sim]) * (next.value[0] - experience.rewards[frame + sim]);
-            auto sm = torch::log_softmax(next.policy, 1);
-            // std::cout << sm << std::endl;
-            loss += torch::nll_loss(sm, action_tensor);
+            ++it;
         }
         loss.backward();
 	}
 
+    m.optimizer.step();
+    return total_loss / static_cast<float>(it);
 	DEBUG("Loss backwards\n");
 	DEBUG("Returning...\n");
 }
@@ -178,6 +216,8 @@ int main(int argc, const char *argv[])
     // }
     // debug_log.open("doom.log", std::ofstream::app);
     std::experimental::filesystem::create_directories("mcts/");
+    std::experimental::filesystem::create_directories("states/");
+    std::experimental::filesystem::create_directories("plots/");
 
     if(argc < 2)
     {
@@ -295,20 +335,23 @@ int main(int argc, const char *argv[])
             {
                 float e_mean_reward = calculate_rewards(e, DISCOUNT);
                 mean_reward += e_mean_reward;
-                agg_experiences.append_experience(e);
+                // agg_experiences.append_experience(e);
             }
             // distill(agg_experiences);
             mean_reward /= static_cast<float>(experiences.size());
         }
 		for(int epoch = 0; epoch < PPO_EPOCHS; epoch++) {
 			Benchmark bepoch{"epoch"};
-			m.optimizer.zero_grad();
+			// m.optimizer.zero_grad();
             // m.value_optimizer.zero_grad();
             // for(auto &e : experiences)
             // {
-            update_model_softmax(m, agg_experiences);
+            for(auto &e : experiences)
+            {
+                update_model_softmax(m, e, 512, 5);
+            }
             // }
-			m.optimizer.step();
+			// m.optimizer.step();
 			// m.value_optimizer.step();
             if(m.net->isnan()) {
                 std::cout << "Doomed tensors!" << std::endl;
@@ -327,14 +370,27 @@ int main(int argc, const char *argv[])
         // analyze_step(m, experiences[0]);
 #ifndef NO_HAMPUS
         {
+            int i = 0;
+            for(auto &s: experiences[0].states)
+            {
+                save_state(s, std::string("states/") + std::to_string(i) + std::string(".pgm"));
+                ++i;
+            }
             Benchmark hampe_dbg("hampe_dbg");
             rds_data rds;
 
             rds["rewards"] = &experiences[0].rewards;
+            for(auto &it: experiences[0].rewards)
+                std::cout << it << ", " << std::endl;
             rds["normalized_rewards"] = &experiences[0].normalized_rewards;
-            rds["advantage"] = &experiences[0].adv;
+            rds["immidiate_rewards"] = &experiences[0].immidiate_rewards;
             rds["actions"] = &experiences[0].actions;
-            rds["values"] = &experiences[0].values;
+            rds["predicted_values"] = &experiences[0].predicted_values;
+            // for(auto &it: experiences[0].predicted_values)
+            //     std::cout << it << ", " << std::endl;
+            rds["predicted_rewards"] = &experiences[0].predicted_rewards;
+            std::vector<float> state_data(experiences[0].states[0].begin(), experiences[0].states[0].end());
+            rds["state"] = &state_data;
 
             auto np = m.net->named_parameters();
             auto oldp = experiences[0].net->named_parameters();
@@ -370,8 +426,8 @@ int main(int argc, const char *argv[])
                 out << std::setw(4) << json << std::endl;
             }
 
-            // std::vector<float> values;
-            // values.resize(experiences[0].get_frames());
+            // std::vector<float> predicted_values;
+            // predicted_values.resize(experiences[0].get_frames());
             // for(int frame = 0; frame < experiences[0].get_frames(); frame+=BATCH_SIZE)
             // {
             //     size_t actual_bs = std::min(BATCH_SIZE, experiences[0].get_frames() - frame);
@@ -379,7 +435,7 @@ int main(int argc, const char *argv[])
             //         break;
             //     }
             //     auto v = m.value_net->forward(experiences[0].get_batch(frame, frame + actual_bs)).to(torch::kCPU);
-            //     std::copy(v.data_ptr<float>(), v.data_ptr<float>() + actual_bs, values.begin() + frame);
+            //     std::copy(v.data_ptr<float>(), v.data_ptr<float>() + actual_bs, predicted_values.begin() + frame);
             // }
 
             std::stringstream tmp_file;
@@ -412,6 +468,11 @@ int main(int argc, const char *argv[])
         int result = Catch::Session().run( argc - 1, argv + 1 );
         test_update_model();
     }
+    else if(0 == strcmp(argv[1], "testdecoder"))
+    {
+        // int result = Catch::Session().run( argc - 1, argv + 1 );
+        test_decoder();
+    }
     else
     {
         std::cout << "unknown command" << std::endl;
@@ -420,8 +481,80 @@ int main(int argc, const char *argv[])
     return 0;
 }
 
+void test_decoder() {
+    constexpr size_t size = STATE_SIZE;
+    std::shared_ptr<Encoder<N_HIDDEN>> e{std::make_shared<Encoder<N_HIDDEN>>()};
+    std::shared_ptr<Decoder<N_HIDDEN, 1>> d{std::make_shared<Decoder<N_HIDDEN, 1>>()};
+    std::shared_ptr<Net> net{std::make_shared<Net>()};
+    Model m(LR);
+	torch::optim::Adam eoptimizer(e->parameters(), torch::optim::AdamOptions(LR));
+	torch::optim::Adam doptimizer(d->parameters(), torch::optim::AdamOptions(LR));
+	torch::optim::Adam optimizer_net(net->parameters(), torch::optim::AdamOptions(LR));
+
+    std::array<float, size> in;
+    auto set = [](std::array<float, size> &s, float v) {
+        std::fill(s.begin(), s.end(), v);
+    };
+    auto target = [](int in) -> float {
+        // return -1.0 + static_cast<float>(2 * in) / 500.0;
+        return static_cast<float>(in * in) / (1000.0 * 1000.0);
+    };
+    for(int i = 0; i < 100; ++i)
+    {
+        std::stringstream s;
+        s << std::setw(4) << std::setfill('0') << i;
+        std::ofstream plot_file(std::string("plots/") + s.str() + std::string(".dat"));
+        plot_file << "in" << " " << "target" << " " << "value" << std::endl;
+        for(int j = 0; j < 1000; j+= 10)
+        {
+            set(in, static_cast<float>(j) / 1000.0);
+            auto output = m.initial_forward(in);
+            auto v = output.value.item<float>();
+            plot_file << std::to_string(j) << " " << std::to_string(target(j)) << " " << std::to_string(v) << std::endl;
+        }
+        plot_file.close();
+        eoptimizer.zero_grad();
+        doptimizer.zero_grad();
+        optimizer_net.zero_grad();
+        m.optimizer.zero_grad();
+        float total_loss = 0.0f;
+        float total_loss_net = 0.0f;
+        float total_loss_m = 0.0f;
+        for(int j = 0; j < 1000; j++)
+        {
+            set(in, static_cast<float>(j) / 1000.0);
+            auto t = device_tensor(in, torch::kCPU).reshape({1, size});
+            auto out = d->forward(e->forward(t));
+            auto output_net = net->initial_forward(t);
+            auto output_m = m.initial_forward(in);
+            auto out_net = output_net.value;
+            auto out_m = output_m.value;
+            auto delta = (out[0] - target(j));
+            auto delta_net = (out_net[0] - target(j));
+            auto delta_m = (out_m[0] - target(j));
+            auto loss = delta * delta;
+            auto loss_net = delta_net * delta_net;
+            auto loss_m = delta_m * delta_m;
+            loss.backward();
+            loss_net.backward();
+            loss_m.backward();
+            total_loss += loss.item<float>();
+            total_loss_net += loss_net.item<float>();
+            total_loss_m += loss_m.item<float>();
+        }
+        eoptimizer.step();
+        doptimizer.step();
+        optimizer_net.step();
+        m.optimizer.step();
+        std::cout << "Encoder + Decoder: " << total_loss << std::endl;
+        std::cout << "Net: " << total_loss_net << std::endl;
+        std::cout << "Model: " << total_loss_m << std::endl;
+    }
+}
+
 void test_update_model() {
     Model m1(LR);
+    Model mold(LR);
     Model exp(LR);
     m1.save_file("/tmp/m");
     exp.load_file("/tmp/m");
@@ -431,50 +564,90 @@ void test_update_model() {
     a1[1] = 1u;
     a2.fill(0u);
     a2[0] = 1u;
-    for(size_t i = 0; i < STATE_SIZE; ++i)
+    auto set = [](StateType &s, float v) {
+        std::fill(s.begin(), s.end(), v);
+    };
+
+    auto target = [](int in) {
+        return -1.0 + static_cast<float>(2 * in) / 500.0;
+    };
+    // for(size_t i = 0; i < STATE_SIZE; ++i)
+    // {
+    //     s1[i] = .1f;
+    //     s2[i] = -.1f;
+    // }
+    for(int i = 0; i < 500; ++i)
     {
-        s1[i] = .1f;
-        s2[i] = -.1f;
+        // std::fill(s1.begin(), s1.end(), static_cast<float>(i) / 1000.0);
+        // s2[0] = static_cast<float>(i) / 1000.0;
+        // set(s1, 0.5 + static_cast<float>(i) / 1000.0);
+        set(s1, target(i));
+        // set(s2, -0.5 -static_cast<float>(i) / 1000.0);
+        exp.record_action(s1, a1, 0.01f, 1.0f, 1.0f);
+        // m1.record_action(s1, a1, 100.0f, 1.0f, 1.0f);
     }
     for(int i = 0; i < 500; ++i)
     {
-        exp.record_action(s1, a1, 100.0f, 1.0f);
-        m1.record_action(s1, a1, 100.0f, 1.0f);
-    }
-    for(int i = 0; i < 500; ++i)
-    {
-        exp.record_action(s2, a2, -100.0f, 1.0f);
-        m1.record_action(s2, a2, -100.0f, 1.0f);
+        // set(s1, 0.5 + static_cast<float>(i + 500) / 1000.0);
+        // set(s2, -0.5 - static_cast<float>(i + 500) / 1000.0);
+        // exp.record_action(s2, a2, -1.0f, 1.0f, 1.0f);
+        // m1.record_action(s2, a2, -100.0f, 1.0f, 1.0f);
     }
     calculate_rewards(exp, DISCOUNT);
-    calculate_rewards(m1, DISCOUNT);
-    for(int i = 0; i < 200; ++i)
+    for(int i = 0; i < exp.rewards.size(); i+=10)
+        std::cout << i << ": " << exp.rewards[i] << std::endl;
+    for(int i = 0; i < 100; ++i)
     {
-        m1.optimizer.zero_grad();
-        update_model_softmax(m1, exp);
-        m1.optimizer.step();
-        // std::cout << ".";
-        m1.save_file("/tmp/m");
-        exp.load_file("/tmp/m");
-        if(i % 1 == 0) {
+        // m1.optimizer.zero_grad();
+        std::stringstream s;
+        s << std::setw(4) << std::setfill('0') << i;
+        std::ofstream plot_file(std::string("plots/") + s.str() + std::string(".dat"));
+        plot_file << "in" << " " << "target" << " " << "value" << std::endl;
+        for(int j = 0; j < 500; j+= 10)
+        {
+            set(s1, target(j));
+            // std::cout << "Test initial forward" << std::endl;
             auto output = m1.initial_forward(s1);
-            auto pa = torch::softmax(output.policy, 1).to(torch::kCPU);
-            auto r = output.reward.item<float>();
+            // std::cout << "After initial forward" << std::endl;
             auto v = output.value.item<float>();
-            // auto s1a = m1.get_value(s1);
-            // auto s2a = m1.get_value(s2);
-            auto paa = pa.accessor<float, 2>();
-            std::cout << "[";
-            for(int i = 0; i < ACTION_SIZE; ++i)
-            {
-                std::cout << paa[0][i] << ", ";
-            }
-            // std::cout << std::endl << std::flush;
-            std::cout << "] " 
-                << std::endl 
-                << " r: " << r
-                << " v: " << v 
-                << std::endl << std::flush;
+            plot_file << std::to_string(target(j)) << " " << std::to_string(exp.rewards[j]) << " " << std::to_string(v) << std::endl;
         }
+        plot_file.close();
+        m1.save_file("/tmp/m");
+        mold.load_file("/tmp/m");
+        auto mold_np = mold.net->named_parameters();
+        std::cout << "loss: " << update_model_softmax(m1, exp, 100, 1) << std::endl;
+        for(auto &it: m1.net->named_parameters().pairs())
+        {
+            // std::cout << "diff " << it.first << ": " << torch::abs((it.second - mold_np[it.first])).mean().item<float>();
+            // std::cout << std::endl;
+        }
+        // m1.optimizer.step();
+        // std::cout << ".";
+        // if(i % 1 == 0) {
+        //     set(s1, -1.0f);
+        //     auto output1 = m1.initial_forward(s1);
+        //     set(s1, 1.0f);
+        //     auto output2 = m1.initial_forward(s1);
+        //     // auto pa = torch::softmax(output1.policy, 1).to(torch::kCPU);
+        //     auto r = output1.reward.item<float>();
+        //     auto v1 = output1.value.item<float>();
+        //     auto v2 = output2.value.item<float>();
+        //     // auto s1a = m1.get_value(s1);
+        //     // auto s2a = m1.get_value(s2);
+        //     // auto paa = pa.accessor<float, 2>();
+        //     // std::cout << "[";
+        //     // for(int i = 0; i < ACTION_SIZE; ++i)
+        //     // {
+        //     //     std::cout << paa[0][i] << ", ";
+        //     // }
+        //     // std::cout << std::endl << std::flush;
+        //     std::cout << "] " 
+        //         << std::endl 
+        //         // << " r: " << r
+        //         << " v1: " << v1 << " true: " << exp.rewards[0]
+        //         << " v2: " << v2 << " true: " << exp.rewards[499]
+        //         << std::endl << std::flush;
+        // }
     }
 }

@@ -358,9 +358,11 @@ bool brain_on_frame(float *frame_reward, int *action_idx)
 		std::cout << "I should exit now..." << std::endl;
 		return false;
 	}
-	float reward = 0;
-	// bool save_it = get_reward(frame, reward);
-	bool save_it = true;
+	float reward = 0.0f;
+	bool save_it = get_reward(frame, reward);
+	// reward = 0.0f;
+	// std::cout << "r: " << reward << std::endl;
+	// bool save_it = true;
 
 
 	StateType s;
@@ -401,14 +403,14 @@ bool brain_on_frame(float *frame_reward, int *action_idx)
 
 	if(frame_history.size())
 	{
-		size_t num_frames = ((frame_history.size() > 60) ? 60 : frame_history.size());
-		reward = num_frames * FRAME_HASH_W * FRAME_HASH_H;
+		size_t num_frames = ((frame_history.size() > 5 * 60) ? (5 * 60) : frame_history.size());
+		// reward = num_frames * FRAME_HASH_W * FRAME_HASH_H;
 
 		// std::cout << "Reward starts at: " << reward << std::endl;
 
 		for(size_t i = (frame_history.size() - num_frames); i < frame_history.size(); ++i)
 		{
-			reward -= hash_compare(frame_history[i].get(), hash.get());
+			// reward -= hash_compare(frame_history[i].get(), hash.get());
 		}
 
 		// std::cout << "Reward is now:   " << reward << std::endl;
@@ -467,7 +469,8 @@ bool brain_on_frame(float *frame_reward, int *action_idx)
 		s[i*3 + RAM_SIZE + 1] = static_cast<float>((brain_screen[i] >> 8) & 255) / 255.0 - 0.5f;
 		s[i*3 + RAM_SIZE + 2] = static_cast<float>((brain_screen[i]) & 255) / 255.0 - 0.5f;
 	}
-	ActionType a = model.get_action(s, 25, std::string("tree_") + std::to_string(generation));
+	float r, q;
+	ActionType a = model.get_action(s, r, q, 25, std::string("tree_") + std::to_string(generation));
 	for(uint32_t i = 0; i < ACTION_SIZE; ++i) {
 		if(a[i] == 1)
 		{
@@ -475,12 +478,12 @@ bool brain_on_frame(float *frame_reward, int *action_idx)
 		}
 	}
 
-	float v = 0.0f; //model.get_value(s);
+	// float v = model.get_value(s);
 	if(save_it)
 	{
 		// std::cout << reward << std::endl;
 		// std::cout << v << std::endl;
-		model.record_action(s, a, reward, v);
+		model.record_action(s, a, reward, r, q);
 	}
 
 	int override = override_input(frame);

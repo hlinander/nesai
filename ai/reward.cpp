@@ -55,9 +55,8 @@ std::vector<float> normalize_mean_std(std::vector<float> &data) {
 
 float calculate_rewards(Model &experience, float discount) {
     experience.rewards.resize(experience.get_frames());
-    experience.adv.resize(experience.get_frames());
     std::fill(std::begin(experience.rewards), std::end(experience.rewards), 0.0f);
-    std::fill(std::begin(experience.adv), std::end(experience.adv), 0.0f);
+    experience.immidiate_rewards = normalize_std(experience.immidiate_rewards);
     float reward = 0.0;
     for (int frame = experience.get_frames() - 1; frame >= 0; --frame) {
         reward *= discount;
@@ -65,11 +64,10 @@ float calculate_rewards(Model &experience, float discount) {
         experience.rewards[frame] = reward;
         // ret.adv[frame] = reward;// - experience.values[frame];
     }
-    experience.normalized_rewards = normalize_std(experience.rewards);
+    experience.rewards = normalize_std(experience.rewards);
     // std::transform(experience.normalized_rewards.begin(), experience.normalized_rewards.end(),
     //                experience.values.begin(), experience.adv.begin(),
     //                [](float &reward, float &value) { return reward - value; });
-    experience.adv = normalize_mean_std(experience.rewards);
 
     float total_reward = std::accumulate(experience.rewards.begin(),
                                          experience.rewards.end(), 0.0f);

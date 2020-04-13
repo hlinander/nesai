@@ -105,6 +105,14 @@ struct rds_data
 		return *this;
 	}
 
+	template<size_t N>
+	rds_data &operator =(const std::array<float, N> *p)
+	{
+		m_data.ptr = (void *)p;
+		m_type = rds_type::flt_vec;
+		return *this;
+	}
+
 	rds_data &operator =(const std::vector<std::vector<float>> *p)
 	{
 		m_data.ptr = (void *)p;

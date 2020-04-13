@@ -37,7 +37,7 @@ function brain_begin_rollout()
 	nloads = 0
 	nmaxframes = os.getenv('MAX_FRAMES')
 	if nmaxframes == nil then
-		nmaxframes = 3000
+		nmaxframes = 1000
 	else
 		nmaxframes = tonumber(nmaxframes)
 	end

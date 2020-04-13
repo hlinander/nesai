@@ -7,6 +7,16 @@ library(tictoc)
 
 # options(error=recover)
 
+plot_state = function(data) {
+	data <- lapply(data, function(e) { e$state })
+	data <- unlist(data)
+	data <- data.frame(state=data)
+	data$ids = seq_len(nrow(data))
+	df <- melt(data, id.vars="ids", variable.name = 'series')
+	g <- ggplot(df, aes(x=value, y=series)) + geom_density_ridges(fill='gray')
+	return(g)
+}
+
 plot_parameters = function(data, type, layer, color) {
 	tic("preproc")
 	nplots <- min(c(length(data), 15))
@@ -16,8 +26,8 @@ plot_parameters = function(data, type, layer, color) {
 	sdata <- lapply(sdata, function(e) { e[[layer]]$values })
 	sdata <- lapply(sdata, unlist)
 	df <- data.frame(do.call(cbind, sdata))
-	# print(indices)
-	# print(colnames(df))
+	print(indices)
+	print(colnames(df))
 	colnames(df) <- as.character(indices)
 	df$ids = seq_len(nrow(df))
 	df <- melt(df, id.vars="ids", variable.name = 'series')
@@ -117,7 +127,7 @@ plot_actions = function(data) {
 	last <- tail(data, n=1)[[1]]
 	actions <- last$actions
 	actions <- actions[1:min(500, length(actions))]
-	adv <- last$advantage
+	adv <- last$rewards
 	adv <- adv[1:min(500, length(adv))]
 	df <- data.frame(do.call(rbind, actions))
 	df[, "adv"] <- adv
@@ -131,23 +141,24 @@ plot_actions = function(data) {
 }
 
 plot_all = function(data, plot_file) {
-	w1 <- plot_parameters(data, 'parameters', 'Encoder.fc1.weight', 'gray')
-	w2 <- plot_parameters(data, 'parameters', 'Encoder.fc2.weight', 'gray')
-	# w3 <- plot_parameters(data, 'parameters', 'Encoder.fc3.weight', 'gray')
-	b1 <- plot_parameters(data, 'parameters', 'Encoder.fc1.bias', 'gray')
-	b2 <- plot_parameters(data, 'parameters', 'Encoder.fc2.bias', 'gray')
-	# b3 <- plot_parameters(data, 'parameters', 'Encoder.fc3.bias', 'gray')
+	w1 <- plot_parameters(data, 'parameters', 'Value.fc3.weight', 'gray')
+	w2 <- plot_parameters(data, 'parameters', 'Value.fc2.weight', 'gray')
+	# w3 <- plot_parameters(data, 'parameters', 'Value.fc3.weight', 'gray')
+	b1 <- plot_parameters(data, 'parameters', 'Value.fc3.bias', 'gray')
+	b2 <- plot_parameters(data, 'parameters', 'Value.fc2.bias', 'gray')
+	# b3 <- plot_parameters(data, 'parameters', 'Value.fc3.bias', 'gray')
 
-	dw1 <- plot_parameters(data, 'dparameters', 'Encoder.fc1.weight', 'lightgreen')
-	dw2 <- plot_parameters(data, 'dparameters', 'Encoder.fc2.weight', 'lightgreen')
-	# dw3 <- plot_parameters(data, 'dparameters', 'Encoder.fc3.weight', 'lightgreen')
-	db1 <- plot_parameters(data, 'dparameters', 'Encoder.fc1.bias', 'lightgreen')
-	db2 <- plot_parameters(data, 'dparameters', 'Encoder.fc2.bias', 'lightgreen')
+	dw1 <- plot_parameters(data, 'dparameters', 'Value.fc3.weight', 'lightgreen')
+	dw2 <- plot_parameters(data, 'dparameters', 'Value.fc2.weight', 'lightgreen')
+	# dw3 <- plot_parameters(data, 'dparameters', 'Value.fc3.weight', 'lightgreen')
+	db1 <- plot_parameters(data, 'dparameters', 'Value.fc3.bias', 'lightgreen')
+	db2 <- plot_parameters(data, 'dparameters', 'Value.fc2.bias', 'lightgreen')
 	# db3 <- plot_parameters(data, 'dparameters', 'Encoder.fc3.bias', 'lightgreen')
 
 	mr <- plot_avg_rewards(data)
 	# rewards <- plot_rewards(data)
-	advantages <- plot_advantages(data)
+	# advantages <- plot_advantages(data)
+	state <- plot_state(data)
 	lengths <- plot_rollout_lengths(data)
 	actions <- plot_actions(data)
 	lay <- rbind(c(1,2,3, 4, 5, 6),
@@ -170,7 +181,7 @@ plot_all = function(data, plot_file) {
 	# print(actions)
 	# toc()
 	tic("grid")
-	plot <- grid.arrange(w1,w2,w1, b1,b2,w1,dw1,dw2,w1, db1,db2,w1,mr,advantages, lengths, actions, nrow=3, layout_matrix=lay)
+	plot <- grid.arrange(w1,w2,w1, b1,b2,w1,dw1,dw2,w1, db1,db2,w1,mr,state, lengths, actions, nrow=3, layout_matrix=lay)
 	# plot <- w3 #grid.arrange(w1,w2,w3, b1,b2,b3,dw1,dw2,dw3, db1,db2,db3,mr,advantages, lengths, actions, nrow=3, layout_matrix=lay)
 	toc()
 	#print(plot)
@@ -210,17 +221,34 @@ plot_all_rewards <- function() {
 
 # plot_all_epochs()
 
-plot_value_vs_reward <- function(data) {
+plot_predicted_reward_vs_reward <- function(data) {
 	sdata <- data[[1]]
-	rewards <- sdata$normalized_rewards[1:min(2000, length(sdata$normalized_rewards))]
-	values <- sdata$values[1:min(2000, length(sdata$values))]
+	rewards <- sdata$immidiate_rewards[1:min(2000, length(sdata$immidiate_rewards))]
+	predicted_rewards <- sdata$predicted_rewards[1:min(2000, length(sdata$predicted_rewards))]
 	crewards <- unlist(rewards)
-	cvalues <- unlist(values)
-	df <- data.frame(values=cvalues, rewards=crewards)
+	cpredicted_rewards <- unlist(predicted_rewards)
+	df <- data.frame(predicted_rewards=cpredicted_rewards, rewards=crewards)
 	df$id = seq_len(nrow(df))
 	melted <- melt(df, id.vars="id", variable.name="series")
-	res <- ggplot(melted, aes(x=id, y=value, color=series)) + geom_point() + ggtitle("norm rewards vs value")
-	return(res)
+	res <- ggplot(melted, aes(x=id, y=value, color=series)) + geom_point() + ggtitle("immidiate rewards vs predicted rewards")
+	dist <- ggplot(melted, aes(x=value, y=series)) + geom_density_ridges(fill='gray')
+	plot <- grid.arrange(res, dist, nrow=1, layout_matrix=rbind(c(1, 2)))
+	return(plot)
+}
+
+plot_predicted_value_vs_value <- function(data) {
+	sdata <- data[[1]]
+	values <- sdata$rewards[1:min(2000, length(sdata$rewards))]
+	predicted_values <- sdata$predicted_values[1:min(2000, length(sdata$predicted_values))]
+	cvalues <- unlist(values)
+	cpredicted_values <- unlist(predicted_values)
+	df <- data.frame(predicted_values=cpredicted_values, values=cvalues)
+	df$id = seq_len(nrow(df))
+	melted <- melt(df, id.vars="id", variable.name="series")
+	res <- ggplot(melted, aes(x=id, y=value, color=series)) + geom_point() + ggtitle("immidiate values vs predicted values")
+	dist <- ggplot(melted, aes(x=value, y=series)) + geom_density_ridges(fill='gray')
+	plot <- grid.arrange(res, dist, nrow=1, layout_matrix=rbind(c(1, 2)))
+	return(plot)
 }
 
 plot_vr <- function() {
@@ -228,11 +256,11 @@ plot_vr <- function() {
 	plot_file <- Sys.getenv("PLOT_FILE")
 	data_files <- unlist(strsplit(data_files_string, " "))
 	data <- lapply(data_files, readRDS)
-	p <- plot_value_vs_reward(data)
-	pa <- plot_advantages(data)
+	rp <- plot_predicted_reward_vs_reward(data)
+	vp <- plot_predicted_value_vs_value(data)
 	lay <- rbind(c(1),
 				 c(2))
-	plot <- grid.arrange(p, pa, nrow=1, layout_matrix=lay)
+	plot <- grid.arrange(rp, vp, nrow=1, layout_matrix=lay)
 	ggsave(plot_file, plot=plot, device="png", width=20, height=5)
 }
 
