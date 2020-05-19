@@ -404,15 +404,20 @@ bool brain_on_frame(float *frame_reward, int *action_idx)
 	if(frame_history.size())
 	{
 		size_t num_frames = ((frame_history.size() > 5 * 60) ? (5 * 60) : frame_history.size());
-		// reward = num_frames * FRAME_HASH_W * FRAME_HASH_H;
+		size_t max_reward = num_frames * FRAME_HASH_W * FRAME_HASH_H;
+		reward = max_reward;
 
 		// std::cout << "Reward starts at: " << reward << std::endl;
 
 		for(size_t i = (frame_history.size() - num_frames); i < frame_history.size(); ++i)
 		{
-			// reward -= hash_compare(frame_history[i].get(), hash.get());
+			reward -= hash_compare(frame_history[i].get(), hash.get());
 		}
-
+		//std::cout << static_cast<float>(reward) / static_cast<float>(max_reward) << std::endl;
+		if(reward < max_reward / 2)
+		{
+			reward = 0;
+		}
 		// std::cout << "Reward is now:   " << reward << std::endl;
 
 // #define DEBUG_FRAMES
@@ -470,7 +475,7 @@ bool brain_on_frame(float *frame_reward, int *action_idx)
 		s[i*3 + RAM_SIZE + 2] = static_cast<float>((brain_screen[i]) & 255) / 255.0 - 0.5f;
 	}
 	float r, q;
-	ActionType a = model.get_action(s, r, q, 25, std::string("tree_") + std::to_string(generation));
+	ActionType a = model.get_action(s, r, q, 2, std::string("tree_") + std::to_string(generation));
 	for(uint32_t i = 0; i < ACTION_SIZE; ++i) {
 		if(a[i] == 1)
 		{
@@ -503,6 +508,8 @@ bool brain_on_frame(float *frame_reward, int *action_idx)
 		size_t RIGHT = static_cast<size_t>(Action::RIGHT);
 		size_t RIGHT_A = static_cast<size_t>(Action::RIGHT_A);
 		size_t RIGHT_B = static_cast<size_t>(Action::RIGHT_B);
+		size_t START = static_cast<size_t>(Action::START);
+
 
 		// gp_bits = 1 << 7;
 		gp_bits = 0;
@@ -528,6 +535,7 @@ bool brain_on_frame(float *frame_reward, int *action_idx)
 		gp_bits |= a[RIGHT] << 7;
 		gp_bits |= a[RIGHT_A] << 7;
 		gp_bits |= a[RIGHT_B] << 7;
+		gp_bits |= a[START] << 3;
 	}
 	else
 	{
@@ -542,6 +550,7 @@ bool brain_on_frame(float *frame_reward, int *action_idx)
 		next_fps = now + 1000;
 	}
 	++frame;
+	// std::cout << "end of brain " << reward << std::endl;
 	*frame_reward = reward;
 	return true;
 }

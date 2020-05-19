@@ -571,7 +571,7 @@ async function generatePlots() {
       generateSmallstats(ais[name], 20),
       generateValuestats(ais[name]),
       generateRewards(ais[name])
-    ]);
+    ]).catch(err => console.log(err));
     console.log("Plots for " + name + " done!");
     generatePlots();
     return

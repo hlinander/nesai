@@ -15,10 +15,9 @@
 #include "bm.h"
 #include "reward.h"
 
-constexpr int ENCODER_FILTERS = 32;
-constexpr int DECODER_FILTERS = 32;
-constexpr int N_INITIAL_FILTERS = 32;
-constexpr int RES_FILTERS = 32;
+constexpr int ENCODER_FILTERS = 16;
+constexpr int DECODER_FILTERS = 4;
+constexpr int INITIAL_FILTERS = 16;
 const int N_HIDDEN = 64U;
 const int RAM_SIZE = 0x800;
 const int SCREEN_W = 32;
@@ -111,6 +110,12 @@ torch::Tensor device_tensor(T &container, torch::Device device, c10::ScalarType 
 	return ret.to(device);
 }
 
+static torch::Tensor device_tensor_batched(void* data, size_t size, torch::Device device, c10::ScalarType in_type = torch::kFloat32, c10::ScalarType out_type = torch::kFloat32)
+{
+	auto ret = torch::from_blob(data, {size}, in_type).to(out_type);
+	return ret.to(device);
+}
+
 template <int N_INPUT, int N_FILTERS, int KERNEL_SIZE>
 struct ResidualBlock : torch::nn::Module
 {
@@ -118,9 +123,9 @@ struct ResidualBlock : torch::nn::Module
 	{
 		Benchmark nt("Net constrct");
 		bn1 = register_module("bn1", torch::nn::BatchNorm1d(N_INPUT));
-		bn2 = register_module("bn2", torch::nn::BatchNorm1d(N_INPUT));
+		bn2 = register_module("bn2", torch::nn::BatchNorm1d(N_FILTERS));
 		c1 = register_module("c1", torch::nn::Conv1d(torch::nn::Conv1dOptions(N_INPUT, N_FILTERS, KERNEL_SIZE).padding(1)));
-		c2 = register_module("c2", torch::nn::Conv1d(torch::nn::Conv1dOptions(N_INPUT, N_FILTERS, KERNEL_SIZE).padding(1)));
+		c2 = register_module("c2", torch::nn::Conv1d(torch::nn::Conv1dOptions(N_FILTERS, N_FILTERS, KERNEL_SIZE).padding(1)));
 		torch::nn::init::xavier_normal_(c1->weight);
 		torch::nn::init::xavier_normal_(c2->weight);
 		Benchmark togpu("NET to GPU");
@@ -131,7 +136,7 @@ struct ResidualBlock : torch::nn::Module
 	{
 		print_size("Res in", x);
 		auto c = c1->forward(torch::relu(bn1->forward(x)));
-		c = c2->forward(torch::relu(bn2->forward(x)));
+		c = c2->forward(torch::relu(bn2->forward(c)));
 		print_size("Res out", c);
 		return x + c;
 	}
@@ -205,8 +210,8 @@ struct EncoderCNN : torch::nn::Module
 	static constexpr int out_size = floor(static_cast<float>(STATE_SIZE - 1) / static_cast<float>(in_stride));
 	EncoderCNN(): device(get_device())
 	{
-		c_initial = register_module("c_initial", torch::nn::Conv1d(torch::nn::Conv1dOptions(1, N_INITIAL_FILTERS, 5).stride(in_stride)));
-		r1 = register_module("r1", std::make_shared<ResidualBlock<ENCODER_FILTERS, ENCODER_FILTERS, 3>>());
+		c_initial = register_module("c_initial", torch::nn::Conv1d(torch::nn::Conv1dOptions(1, INITIAL_FILTERS, 5).stride(in_stride)));
+		r1 = register_module("r1", std::make_shared<ResidualBlock<INITIAL_FILTERS, ENCODER_FILTERS, 3>>());
 		r2 = register_module("r2", std::make_shared<ResidualBlock<ENCODER_FILTERS, ENCODER_FILTERS, 3>>());
 	}
 
@@ -233,7 +238,8 @@ struct EncoderCNN : torch::nn::Module
 		return false;
 	}
 
-	std::shared_ptr<ResidualBlock<RES_FILTERS, RES_FILTERS, 3>> r1{nullptr}, r2{nullptr};
+	std::shared_ptr<ResidualBlock<INITIAL_FILTERS, ENCODER_FILTERS, 3>> r1{nullptr};
+	std::shared_ptr<ResidualBlock<ENCODER_FILTERS, ENCODER_FILTERS, 3>> r2{nullptr};
 	torch::nn::Conv1d c_initial{nullptr};
 	torch::Device device;
 };
@@ -250,7 +256,7 @@ struct DecoderCNN : torch::nn::Module
 	torch::Tensor forward(torch::Tensor x)
 	{
 		print_size("DecoderCNN in", x);
-		x = c_reduce->forward(x).reshape({1, -1});
+		x = c_reduce->forward(x).reshape({x.sizes()[0], -1});
 		print_size("DecoderCNN after conv", x);
 		x = decoder->forward(x);
 		print_size("DecoderCNN out", x);
@@ -368,6 +374,34 @@ struct NetCNN : torch::nn::Module
 		auto repeated_action = action_tensor.repeat({1, 1, n_repeat});
 		auto padded_action_tensor = F::pad(repeated_action, F::PadFuncOptions({0, pad_size}).mode(torch::kCircular));
 		features = features.reshape({1, ENCODER_FILTERS, EncoderCNN::out_size});
+		print_size("features ", features);
+		print_size("padded repeated actions",padded_action_tensor);
+		auto features_and_actions = torch::cat({features, padded_action_tensor}, 1);
+		return Output({policy->forward(features),
+					   value->forward(features),
+					   reward->forward(features),
+					   dynamics->forward(features_and_actions)});
+	}
+
+	Output recurrent_forward_batched(torch::Tensor features, std::vector<ActionType> &action)
+	{
+		// auto features = net->encoder->forward(dts);
+		// [1, N]
+		// [1, A]
+		// [1, N + A]
+
+		// [1, C, N]
+		// [1, 1, A] -> [1, 1, N]
+		// [1, C + 1, N]
+		print_size("recurrent foward in", features);
+		namespace F = torch::nn::functional;
+		auto action_tensor = device_tensor_batched(static_cast<void*>(action.data()), action.size() * ACTION_SIZE, device, torch::kUInt8, torch::kFloat32).reshape({action.size(), 1, ACTION_SIZE});
+		int n_repeat = floor(EncoderCNN::out_size / ACTION_SIZE);
+		int pad_size = EncoderCNN::out_size - n_repeat * ACTION_SIZE;
+		auto repeated_action = action_tensor.repeat({1, 1, n_repeat});
+		auto padded_action_tensor = F::pad(repeated_action, F::PadFuncOptions({0, pad_size}).mode(torch::kCircular));
+		features = features.reshape({action.size(), ENCODER_FILTERS, EncoderCNN::out_size});
+		print_size("repeated action ", repeated_action);
 		print_size("features ", features);
 		print_size("padded repeated actions",padded_action_tensor);
 		auto features_and_actions = torch::cat({features, padded_action_tensor}, 1);
@@ -567,6 +601,13 @@ struct Model
 	// }
 	
 
+	Output initial_forward_batched(std::vector<StateType> &s)
+	{
+		auto dts = device_tensor_batched(static_cast<void*>(s.data()), s.size() * STATE_SIZE, net->device);
+		auto rdts = torch::reshape(dts, {s.size(), 1, STATE_SIZE});
+		return net->initial_forward(rdts);
+	}
+
 	Output initial_forward(StateType &s)
 	{
 		auto dts = device_tensor(s, net->device);
@@ -579,6 +620,13 @@ struct Model
 		auto dts = device_tensor(s, net->device);
 		auto rdts = torch::reshape(dts, {1, 1, STATE_SIZE});
 		return net->recurrent_forward(rdts, a);
+	}
+
+	Output recurrent_forward_batched(std::vector<StateType> &s, std::vector<ActionType> &a)
+	{
+		auto dts = device_tensor_batched(static_cast<void*>(s.data()), s.size() * STATE_SIZE, net->device);
+		auto rdts = torch::reshape(dts, {s.size(), 1, STATE_SIZE});
+		return net->recurrent_forward_batched(rdts, a);
 	}
 
 	ActionType get_action(StateType &s, float &r, float &q, int simulations = 25, std::string id = "")

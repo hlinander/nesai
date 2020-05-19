@@ -2,6 +2,7 @@
 set -e
 ./build_gpu
 export AIS=$@
+export NUM_CLIENTS=2
 tmux \
 	new-session  "./runserver" \; \
 	split-window "./runclients" \;

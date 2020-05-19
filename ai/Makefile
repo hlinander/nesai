@@ -18,10 +18,13 @@ else
 	CPPFLAGS += -Wno-deprecated-declarations
 endif
 
-.PHONY: all clean
+.PHONY: all clean python
 
 all: overmind libai.a 
 # libbrain.so
+
+python: libai.a
+	python3 setup.py bdist_wheel
 
 overmind: model.o overmind.o replay.o reward.o tests.o
 	g++ $^ $(LIBS) -o $@

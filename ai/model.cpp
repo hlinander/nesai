@@ -61,7 +61,7 @@ void MCTSNode::populate(Output o)
     hidden = o.hidden;
     Q = o.value.item<float>();
     R = o.reward.item<float>();
-    auto dist = torch::softmax(o.policy, 1);
+    auto dist = torch::softmax(o.policy, 1).to(torch::kCPU);
     auto dist_a = dist.accessor<float, 2>();
     children.resize(ACTION_SIZE);
     for(size_t i = 0; i < ACTION_SIZE; ++i)

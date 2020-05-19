@@ -141,18 +141,18 @@ plot_actions = function(data) {
 }
 
 plot_all = function(data, plot_file) {
-	w1 <- plot_parameters(data, 'parameters', 'Value.fc3.weight', 'gray')
-	w2 <- plot_parameters(data, 'parameters', 'Value.fc2.weight', 'gray')
+	w1 <- plot_parameters(data, 'parameters', 'Value.decoder.fc3.weight', 'gray')
+	w2 <- plot_parameters(data, 'parameters', 'Value.decoder.fc2.weight', 'gray')
 	# w3 <- plot_parameters(data, 'parameters', 'Value.fc3.weight', 'gray')
-	b1 <- plot_parameters(data, 'parameters', 'Value.fc3.bias', 'gray')
-	b2 <- plot_parameters(data, 'parameters', 'Value.fc2.bias', 'gray')
+	b1 <- plot_parameters(data, 'parameters', 'Value.decoder.fc3.bias', 'gray')
+	b2 <- plot_parameters(data, 'parameters', 'Value.decoder.fc2.bias', 'gray')
 	# b3 <- plot_parameters(data, 'parameters', 'Value.fc3.bias', 'gray')
 
-	dw1 <- plot_parameters(data, 'dparameters', 'Value.fc3.weight', 'lightgreen')
-	dw2 <- plot_parameters(data, 'dparameters', 'Value.fc2.weight', 'lightgreen')
+	dw1 <- plot_parameters(data, 'dparameters', 'Value.decoder.fc3.weight', 'lightgreen')
+	dw2 <- plot_parameters(data, 'dparameters', 'Value.decoder.fc2.weight', 'lightgreen')
 	# dw3 <- plot_parameters(data, 'dparameters', 'Value.fc3.weight', 'lightgreen')
-	db1 <- plot_parameters(data, 'dparameters', 'Value.fc3.bias', 'lightgreen')
-	db2 <- plot_parameters(data, 'dparameters', 'Value.fc2.bias', 'lightgreen')
+	db1 <- plot_parameters(data, 'dparameters', 'Value.decoder.fc3.bias', 'lightgreen')
+	db2 <- plot_parameters(data, 'dparameters', 'Value.decoder.fc2.bias', 'lightgreen')
 	# db3 <- plot_parameters(data, 'dparameters', 'Encoder.fc3.bias', 'lightgreen')
 
 	mr <- plot_avg_rewards(data)

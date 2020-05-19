@@ -328,6 +328,7 @@ static int run_brain()
 			GifWriteFrame(&g, reinterpret_cast<uint8_t *>(frame_pixels), 256, 240, 1);
 			total_reward = 0;
 		}
+		frame_reward = 0;
 	}
 	// save_state_disk();
 	return 0;
